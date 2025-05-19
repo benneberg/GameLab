@@ -1,62 +1,256 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Microphone Test</title>
-    <style>
-        body { font-family: sans-serif; text-align: center; margin-top: 50px; }
-        button { font-size: 1.2em; padding: 10px 20px; cursor: pointer; }
-        p { font-size: 0.9em; color: #555; margin-top: 20px; }
-        .error { color: red; font-weight: bold; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Echo Dash</title>
+  <script defer></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    canvas { touch-action: none; }
+  </style>
 </head>
-<body>
+<body class="bg-gray-900 text-white font-mono">
 
-    <h1>Microphone Access Test 🎤</h1>
+  <!-- SOUND RECORDING SETUP UI -->
+  <div id="setup" class="flex flex-col items-center justify-center min-h-screen space-y-4">
+    <h1 class="text-3xl font-bold">Echo Dash</h1>
+    <p>Record your custom game sounds!</p>
 
-    <button id="micButton">Request Microphone</button>
+    <div id="recorder" class="space-y-2">
+      <div>
+        <button onclick="startRecording('jump')" class="btn">Record Jump</button>
+        <span id="status-jump"></span>
+      </div>
+      <div>
+        <button onclick="startRecording('slide')" class="btn">Record Slide</button>
+        <span id="status-slide"></span>
+      </div>
+      <div>
+        <button onclick="startRecording('pickup')" class="btn">Record Pickup</button>
+        <span id="status-pickup"></span>
+      </div>
+      <div>
+        <button onclick="startRecording('hit')" class="btn">Record Hit</button>
+        <span id="status-hit"></span>
+      </div>
+    </div>
 
-    <p id="status"></p>
+    <button onclick="startGame()" class="btn bg-green-600">Start Game</button>
+  </div>
 
-    <p>For <strong>iPhone</strong> users, <strong>Safari</strong> requires user interaction to request microphone access. Ensure permissions are enabled in your settings if issues persist.</p>
+  <!-- GAME UI -->
+  <div id="game-ui" class="hidden flex flex-col items-center">
+    <canvas id="gameCanvas" width="800" height="400" class="bg-black w-full max-w-xl"></canvas>
 
-    <script>
-        const micButton = document.getElementById('micButton');
-        const statusElement = document.getElementById('status');
+    <!-- MOBILE CONTROLS -->
+    <div class="flex justify-between w-full max-w-xl mt-4 px-8">
+      <button id="btnJump" class="btn bg-blue-500">Jump</button>
+      <button id="btnSlide" class="btn bg-purple-500">Slide</button>
+    </div>
+  </div>
 
-        micButton.addEventListener('click', async () => {
-            statusElement.textContent = 'Requesting microphone access...';
-            statusElement.classList.remove('error');
+  <script>
+    // ==== GAME SETTINGS ====
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
 
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    statusElement.textContent = 'Microphone access granted! ✅';
-                    // You can now use the stream (e.g., for recording or processing)
-                    // To stop the microphone track (and turn off the indicator):
-                    // stream.getTracks().forEach(track => track.stop());
-                } catch (err) {
-                    statusElement.classList.add('error');
-                    if (err.name === 'NotAllowedError') {
-                        statusElement.textContent = 'Microphone access denied by user. 🚫';
-                    } else if (err.name === 'NotFoundError') {
-                        statusElement.textContent = 'No microphone found. 🎤❓';
-                    } else if (err.name === 'NotReadableError') {
-                        statusElement.textContent = 'Microphone is already in use or hardware error. 🛠️';
-                    } else {
-                        statusElement.textContent = `Error accessing microphone: ${err.name} - ${err.message} ❌`;
-                    }
-                    console.error('getUserMedia error:', err);
-                    alert(`Debugging info: Failed to get microphone.\nError name: ${err.name}\nError message: ${err.message}`);
-                }
-            } else {
-                statusElement.classList.add('error');
-                statusElement.textContent = 'getUserMedia not supported in this browser. 👎';
-                alert('Debugging info: navigator.mediaDevices.getUserMedia is not supported by your browser.');
-            }
-        });
-    </script>
+    let player, obstacles = [], treats = [];
+    let gameSpeed = 4;
+    let gravity = 0.6;
 
+    const sounds = {}; // will hold Blob URLs
+
+    // ==== SOUND RECORDING ====
+    let mediaRecorder;
+    let chunks = [];
+
+    async function startRecording(name) {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+
+      mediaRecorder.ondataavailable = e => chunks.push(e.data);
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/ogg; codecs=opus' });
+        sounds[name] = URL.createObjectURL(blob);
+        document.getElementById('status-' + name).textContent = '✔️';
+        chunks = [];
+      };
+
+      mediaRecorder.start();
+      setTimeout(() => mediaRecorder.stop(), 1500); // record 1.5s
+    }
+
+    function playSound(name) {
+      if (sounds[name]) {
+        new Audio(sounds[name]).play();
+      }
+    }
+
+    // ==== PLAYER CLASS ====
+    class Player {
+      constructor() {
+        this.x = 100;
+        this.y = 300;
+        this.w = 40;
+        this.h = 40;
+        this.vy = 0;
+        this.grounded = true;
+        this.sliding = false;
+      }
+
+      jump() {
+        if (this.grounded) {
+          this.vy = -12;
+          this.grounded = false;
+          playSound('jump');
+        }
+      }
+
+      slide() {
+        if (this.grounded) {
+          this.sliding = true;
+          playSound('slide');
+          setTimeout(() => this.sliding = false, 600);
+        }
+      }
+
+      update() {
+        this.y += this.vy;
+        this.vy += gravity;
+
+        if (this.y > 300) {
+          this.y = 300;
+          this.vy = 0;
+          this.grounded = true;
+        }
+      }
+
+      draw() {
+        ctx.fillStyle = this.sliding ? "purple" : "white";
+        ctx.fillRect(this.x, this.y, this.w, this.h);
+      }
+    }
+
+    // ==== OBSTACLE / TREAT ====
+    class Obstacle {
+      constructor() {
+        this.x = canvas.width;
+        this.y = 320;
+        this.w = 30;
+        this.h = 40;
+      }
+
+      update() {
+        this.x -= gameSpeed;
+      }
+
+      draw() {
+        ctx.fillStyle = "red";
+        ctx.fillRect(this.x, this.y, this.w, this.h);
+      }
+    }
+
+    class Treat {
+      constructor() {
+        this.x = canvas.width;
+        this.y = 250;
+        this.w = 20;
+        this.h = 20;
+      }
+
+      update() {
+        this.x -= gameSpeed;
+      }
+
+      draw() {
+        ctx.fillStyle = "yellow";
+        ctx.fillRect(this.x, this.y, this.w, this.h);
+      }
+    }
+
+    // ==== GAME LOOP ====
+    function updateGame() {
+      player.update();
+
+      // Spawn
+      if (Math.random() < 0.02) obstacles.push(new Obstacle());
+      if (Math.random() < 0.01) treats.push(new Treat());
+
+      obstacles.forEach(o => o.update());
+      treats.forEach(t => t.update());
+
+      // Remove offscreen
+      obstacles = obstacles.filter(o => o.x + o.w > 0);
+      treats = treats.filter(t => t.x + t.w > 0);
+
+      // Collisions
+      obstacles.forEach(o => {
+        if (checkCollision(player, o)) {
+          playSound('hit');
+        }
+      });
+
+      treats.forEach((t, i) => {
+        if (checkCollision(player, t)) {
+          playSound('pickup');
+          treats.splice(i, 1);
+        }
+      });
+    }
+
+    function drawGame() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Ground
+      ctx.fillStyle = "#333";
+      ctx.fillRect(0, 340, canvas.width, 60);
+
+      player.draw();
+      obstacles.forEach(o => o.draw());
+      treats.forEach(t => t.draw());
+    }
+
+    function gameLoop() {
+      updateGame();
+      drawGame();
+      requestAnimationFrame(gameLoop);
+    }
+
+    function checkCollision(a, b) {
+      return a.x < b.x + b.w &&
+             a.x + a.w > b.x &&
+             a.y < b.y + b.h &&
+             a.y + a.h > b.y;
+    }
+
+    // ==== START GAME ====
+    function startGame() {
+      document.getElementById("setup").classList.add("hidden");
+      document.getElementById("game-ui").classList.remove("hidden");
+
+      player = new Player();
+
+      // Touch controls
+      document.getElementById("btnJump").addEventListener("click", () => player.jump());
+      document.getElementById("btnSlide").addEventListener("click", () => player.slide());
+
+      gameLoop();
+    }
+  </script>
+
+  <style>
+    .btn {
+      padding: 0.5rem 1rem;
+      border-radius: 0.25rem;
+      font-weight: bold;
+      background-color: #444;
+      color: white;
+    }
+
+    .btn:hover {
+      background-color: #666;
+    }
+  </style>
 </body>
 </html>
