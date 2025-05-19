@@ -141,6 +141,38 @@ let secondsSurvived = 0;
       }
     }
 
+  
+
+  class Sparkle {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.radius = 2 + Math.random() * 2;
+    this.alpha = 1;
+    this.fade = 0.02 + Math.random() * 0.02;
+    this.dx = (Math.random() - 0.5) * 2;
+    this.dy = (Math.random() - 0.5) * 2;
+  }
+
+  update() {
+    this.x += this.dx;
+    this.y += this.dy;
+    this.alpha -= this.fade;
+  }
+
+  draw() {
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 255, 200, ${this.alpha})`;
+    ctx.fill();
+  }
+
+  isDead() {
+    return this.alpha <= 0;
+  }
+}
+    
+    
     class Enemy {
       constructor(x, y, radius, color, velocity) {
         this.x = x;
@@ -179,18 +211,54 @@ let secondsSurvived = 0;
         ctx.fill();
       }
     }
-
+    
     const player = new Player(canvas.width / 2, canvas.height / 2, 20, "white");
+    
+const sparkles = [];
+let levelFlashTimer = 0;
+let levelTextAlpha = 0;
+const levelColors = ["white", "lightblue", "gold", "violet", "cyan", "lime"];
 
     // Game Loop
     function animate() {
       if (gameOver) return;
 
       requestAnimationFrame(animate);
-      ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+     /* ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);*/
+ 
+  player.update();    
+      
+ // Flashing green background on level up
+if (levelFlashTimer > 0) {
+  ctx.fillStyle = `rgba(17, 94, 0, ${levelFlashTimer})`; // pool table green
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  levelFlashTimer -= 0.02;
+} else {
+  ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}     
 
-      player.update();
+      
+       
+      // chalk Sparkle effects
+for (let i = sparkles.length - 1; i >= 0; i--) {
+  const sparkle = sparkles[i];
+  sparkle.update();
+  sparkle.draw();
+  if (sparkle.isDead()) {
+    sparkles.splice(i, 1);
+  }
+}
+      
+      // Level Up Text
+if (levelTextAlpha > 0) {
+  ctx.fillStyle = `rgba(255, 255, 0, ${levelTextAlpha})`; // yellow
+  ctx.font = "50px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText("LEVEL UP!", canvas.width / 2, canvas.height / 2);
+  levelTextAlpha -= 0.01;
+}
 
       // Enemies
       enemies.forEach((enemy, eIndex) => {
@@ -236,6 +304,26 @@ chalks.forEach(chalk => {
   ctx.restore(); // Restore original state
 });   
       
+  // Check for player collecting chalks
+for (let i = chalks.length - 1; i >= 0; i--) {
+  const chalk = chalks[i];
+  const dx = player.x - chalk.x;
+  const dy = player.y - chalk.y;
+  const distance = Math.hypot(dx, dy);
+
+  if (distance < player.radius + chalk.radius) {
+    health = Math.min(100, health + 20);
+    pickupSound.currentTime = 0;
+    pickupSound.play();
+    chalks.splice(i, 1);
+
+    // Create multiple sparkles
+    for (let j = 0; j < 15; j++) {
+      sparkles.push(new Sparkle(chalk.x, chalk.y));
+    }
+  }
+}
+ 
       // Black holes
       blackHoles.forEach(hole => {
   const dist = Math.hypot(player.x - hole.x, player.y - hole.y);
@@ -312,39 +400,54 @@ gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
     }
 
     function spawnChalk() {
-      setInterval(() => {
-        if (!gameOver) {
-          const x = Math.random() * canvas.width;
-          const y = Math.random() * canvas.height;
-          chalks.push(new Chalk(x, y));
-        }
-      }, 5000);
-    }
-
-    function startTimers() {
-      setInterval(() => {
-        if (!gameOver) {
-          health -= 10;
-          if (health <= 0) {
-            gameOver = true;
-            alert("Game Over! Score: " + score);
-            location.reload();
-          }
-        }
-      }, 1000);
-
-      setInterval(() => {
+     setInterval(() => {
   if (!gameOver) {
-    score += 1;
-    secondsSurvived += 1;
-
-    if (secondsSurvived % 20 === 0) {
-      level += 1;
-      alert("Level Up! Now Level " + level);
+    for (let i = 0; i < 2; i++) {
+      const x = Math.random() * canvas.width;
+      const y = Math.random() * canvas.height;
+      chalks.push(new Chalk(x, y));
     }
   }
-}, 1000);
+}, 2000);
     }
+
+    
+    function startTimers() {
+  setInterval(() => {
+    if (!gameOver) {
+      health -= 10;
+      if (health <= 0) {
+        gameOver = true;
+        alert("Game Over! Score: " + score);
+        location.reload();
+      }
+    }
+  }, 1000);
+
+  setInterval(() => {
+    if (!gameOver) {
+      score += 1;
+      secondsSurvived += 1;
+
+      if (secondsSurvived % 20 === 0) {
+        level += 1;
+
+        // Change player color
+        const levelColors = ["white", "lightblue", "gold", "violet", "cyan", "lime"];
+        player.color = levelColors[level % levelColors.length];
+
+        // Trigger background flash and text
+        levelFlashTimer = 0.8;
+        levelTextAlpha = 1;
+
+        // Sparkle burst
+        for (let i = 0; i < 30; i++) {
+          sparkles.push(new Sparkle(player.x, player.y));
+        }
+      }
+    }
+  }, 1000);
+}
 
     // Touch control
     canvas.addEventListener("touchstart", (event) => {
