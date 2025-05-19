@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Mic Game Test</title>
+  <title>Manual Mic Recorder</title>
   <style>
     body { font-family: sans-serif; text-align: center; padding: 2em; }
     button { padding: 0.6em 1.2em; margin: 0.5em; font-size: 1.1em; }
@@ -16,15 +16,24 @@
   <button id="startBtn">Enable Microphone</button>
 
   <div id="recordUI" style="display: none;">
-    <button onclick="record('jump')">Record Jump</button>
-    <button onclick="record('slide')">Record Slide</button>
-    <button onclick="play('jump')">Play Jump</button>
-    <button onclick="play('slide')">Play Slide</button>
+    <div>
+      <h3>Jump Sound</h3>
+      <button onclick="startRecording('jump')">Start Recording</button>
+      <button onclick="stopRecording()">Stop Recording</button>
+      <button onclick="play('jump')">Play Jump</button>
+    </div>
+    <div>
+      <h3>Slide Sound</h3>
+      <button onclick="startRecording('slide')">Start Recording</button>
+      <button onclick="stopRecording()">Stop Recording</button>
+      <button onclick="play('slide')">Play Slide</button>
+    </div>
   </div>
 
   <script>
-    let mediaRecorder;
     let stream;
+    let mediaRecorder;
+    let currentLabel = '';
     const sounds = {};
 
     document.getElementById("startBtn").addEventListener("click", () => {
@@ -32,36 +41,42 @@
         .then(s => {
           stream = s;
           document.getElementById("recordUI").style.display = "block";
-          document.getElementById("status").textContent = "Microphone access granted!";
+          document.getElementById("status").textContent = "Microphone ready!";
         })
         .catch(err => {
           console.error(err);
-          document.getElementById("status").textContent = "Mic access denied.";
+          document.getElementById("status").textContent = "Microphone access failed.";
         });
     });
 
-    function record(label) {
-      if (!stream) return alert("Mic not ready!");
-
+    function startRecording(label) {
+      if (!stream) return alert("Microphone not ready.");
+      currentLabel = label;
       const chunks = [];
+
       mediaRecorder = new MediaRecorder(stream);
-
-      mediaRecorder.ondataavailable = e => {
-        if (e.data.size > 0) chunks.push(e.data);
-      };
-
+      mediaRecorder.ondataavailable = e => chunks.push(e.data);
       mediaRecorder.onstop = () => {
         const blob = new Blob(chunks, { type: "audio/webm" });
         sounds[label] = URL.createObjectURL(blob);
-        alert(`Recorded "${label}" sound!`);
+        alert(`Recorded "${label}" sound.`);
       };
 
       mediaRecorder.start();
-      setTimeout(() => mediaRecorder.stop(), 1000);
+      console.log("Recording started:", label);
+    }
+
+    function stopRecording() {
+      if (!mediaRecorder || mediaRecorder.state !== "recording") {
+        alert("Nothing is being recorded.");
+        return;
+      }
+      mediaRecorder.stop();
+      console.log("Recording stopped:", currentLabel);
     }
 
     function play(label) {
-      if (!sounds[label]) return alert(`No sound recorded for "${label}"`);
+      if (!sounds[label]) return alert(`No sound recorded for "${label}".`);
       new Audio(sounds[label]).play();
     }
   </script>
