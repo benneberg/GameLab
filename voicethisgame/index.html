@@ -20,7 +20,7 @@
   <div id="setup" class="flex flex-col items-center justify-center min-h-screen space-y-4 text-center px-4">
     <h1 class="text-4xl font-bold">Echo Dash</h1>
     <p class="text-sm">Record your own game sounds! Works best on mobile too.</p>
-    <button onclick="startMicSetup()" class="btn bg-green-500">Make the Game Sounds</button>
+  <button id="makeSoundsBtn" class="btn bg-green-500">Make the Game Sounds</button>
     <div id="recordUI" class="hidden space-y-2 mt-4">
       <div><button class="btn" onclick="startRecording('jump')">Record Jump</button> <span id="status-jump"></span></div>
       <div><button class="btn" onclick="startRecording('slide')">Record Slide</button> <span id="status-slide"></span></div>
@@ -57,6 +57,26 @@
     let audioChunks = [], mediaRecorder, currentSoundName;
     let layers = [], frame = 0;
 
+document.getElementById("makeSoundsBtn").addEventListener("click", () => {
+  navigator.mediaDevices.getUserMedia({ audio: true })
+    .then((stream) => {
+      setupMicRecording(stream); // Save stream and prepare MediaRecorder
+      document.getElementById("recordUI").classList.remove("hidden"); // Show buttons
+      console.log("Microphone access granted.");
+    })
+    .catch((err) => {
+      console.error("Mic access error:", err);
+      alert("Microphone access is required to record your sounds.");
+    });
+});
+
+  let micStream;
+let mediaRecorder;
+
+function setupMicRecording(stream) {
+  micStream = stream;
+  mediaRecorder = new MediaRecorder(stream);
+}  
     // MICROPHONE SETUP
     async function startMicSetup() {
       try {
