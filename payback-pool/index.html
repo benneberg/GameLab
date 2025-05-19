@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PaybackPool</title>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: black;
+    }
+    canvas {
+      display: block;
+      background-color: #111;
+    }
+  </style>
+</head>
+<body><!--
+  <div id="musicSelect" style="position: absolute; z-index: 1; background: rgba(0,0,0,0.7); color: white; padding: 10px;">
+  <label>Choose Track:</label>
+  <select id="trackPicker">
+    <option value="theme1.mp3">Chill Vibes</option>
+    <option value="theme2.mp3">Intense Mode</option>
+    <option value="theme3.mp3">Retro Synth</option>
+  </select>
+  <button onclick="startGame()">Start Game</button>
+</div>-->
+  
+  <div id="startScreen" style="position: absolute; width: 100%; height: 100%; background: rgba(0,0,0,0.9); color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif; z-index: 10;">
+  <h1 style="font-size: 3em; margin-bottom: 0.2em;">PaybackPool</h1>
+  <p style="margin-top: 0; font-size: 1.2em;">Survive. Evade. Chalk up. No mercy.</p>
+  <label>Choose Game Mode:</label>
+  <select id="gameModeSelect">
+    <option value="classic">Classic</option>
+    <option value="hard" disabled>Hard (coming soon)</option>
+  </select>
+  <button onclick="startGame()" style="margin-top: 20px; padding: 10px 20px; font-size: 1.2em;">Start Game</button>
+</div>
+  <div id="gameOverScreen" style="position: absolute; display: none; width: 100%; height: 100%; background: rgba(0,0,0,0.85); color: white; font-family: sans-serif; z-index: 11; align-items: center; justify-content: center; flex-direction: column;">
+  <div style="text-align: center;">
+    <h1>Game Over</h1>
+    <p id="finalScore"></p>
+    <button onclick="restartGame()">Play Again</button>
+    <button onclick="goToMenu()">Back to Menu</button>
+  </div>
+</div>
+  <canvas id="gameCanvas"></canvas>
+<audio id="pickupSound" src="pickup.mp3"></audio>
+<audio id="hitSound" src="hit.mp3"></audio>
+<audio id="themeMusic" src="theme.mp3" loop></audio> 
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener("resize", resizeCanvas);
+
+ // Sounds
+ const pickupSound = document.getElementById("pickupSound");
+const hitSound = document.getElementById("hitSound");
+const themeMusic = document.getElementById("themeMusic");
+
+// Start music after interaction
+canvas.addEventListener("touchstart", () => {
+  themeMusic.play();
+}, { once: true });
+
+canvas.addEventListener("click", () => {
+  themeMusic.play();
+}, { once: true });
+    
+  // chalk collisions
+  pickupSound.currentTime = 0;
+pickupSound.play();
+    
+ // enemy hit
+    hitSound.play();
+   
+ 
+  
+    // Black holes 
+    const blackHoles = [
+  { x: 300, y: 400, radius: 40 },
+  { x: canvas.width - 200, y: 150, radius: 50 }
+];
+   
+  // Level system  
+    let level = 1;
+let secondsSurvived = 0;
+    
+    
+    // Game State
+    let health = 100;
+    let score = 0;
+    let gameOver = false;
+
+    const projectiles = [];
+    const enemies = [];
+    const chalks = [];
+
+    // Classes
+    class Player {
+      constructor(x, y, radius, color) {
+        this.x = x;
+        this.y = y;
+        this.radius = radius;
+        this.color = color;
+        this.speed = 2;
+        this.target = { x: x, y: y };
+      }
+
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.color;
+        ctx.fill();
+      }
+
+      update() {
+        const dx = this.target.x - this.x;
+        const dy = this.target.y - this.y;
+        const distance = Math.hypot(dx, dy);
+
+        if (distance > 1) {
+          this.x += (dx / distance) * this.speed;
+          this.y += (dy / distance) * this.speed;
+        }
+
+        this.draw();
+      }
+
+      moveTo(x, y) {
+        this.target.x = x;
+        this.target.y = y;
+      }
+    }
+
+    class Enemy {
+      constructor(x, y, radius, color, velocity) {
+        this.x = x;
+        this.y = y;
+        this.radius = radius;
+        this.color = color;
+        this.velocity = velocity;
+      }
+
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.color;
+        ctx.fill();
+      }
+
+      update() {
+        this.draw();
+        this.x += this.velocity.x;
+        this.y += this.velocity.y;
+      }
+    }
+
+    class Chalk {
+      constructor(x, y, radius = 10, color = 'blue') {
+        this.x = x;
+        this.y = y;
+        this.radius = radius;
+        this.color = color;
+      }
+
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.color;
+        ctx.fill();
+      }
+    }
+
+    const player = new Player(canvas.width / 2, canvas.height / 2, 20, "white");
+
+    // Game Loop
+    function animate() {
+      if (gameOver) return;
+
+      requestAnimationFrame(animate);
+      ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      player.update();
+
+      // Enemies
+      enemies.forEach((enemy, eIndex) => {
+        enemy.update();
+        const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
+        if (dist - enemy.radius - player.radius < 1) {
+          gameOver = true;
+          showGameOver();
+          location.reload();
+        }
+      });
+
+      // Chalks
+    const time = Date.now() / 200;
+
+chalks.forEach(chalk => {
+  const pulse = 5 * Math.sin(time + chalk.x);
+  const size = chalk.radius + pulse;
+  const angle = time + chalk.x * 0.01; // Unique rotation per chalk
+
+  ctx.save(); // Save current canvas state
+
+  // Move origin to chalk center
+  ctx.translate(chalk.x, chalk.y);
+
+  // Rotate the canvas around the new origin
+  ctx.rotate(angle);
+
+  // Optional glow
+  ctx.shadowColor = 'cyan';
+  ctx.shadowBlur = 10;
+
+  // Draw the pulsating rotating square centered at origin
+  ctx.fillStyle = 'rgba(0, 150, 255, 0.9)';
+  ctx.strokeStyle = 'white';
+  ctx.lineWidth = 1;
+
+  ctx.beginPath();
+  ctx.rect(-size / 2, -size / 2, size, size);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.restore(); // Restore original state
+});   
+      
+      // Black holes
+      blackHoles.forEach(hole => {
+  const dist = Math.hypot(player.x - hole.x, player.y - hole.y);
+  if (dist < 115) {
+    const gradient = ctx.createRadialGradient(hole.x, hole.y, 0, hole.x, hole.y, hole.radius + 60);
+gradient.addColorStop(0, 'rgba(255, 0, 0, 0.2)');
+gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(hole.x, hole.y, hole.radius + 50, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Draw solid black inner circle
+    ctx.fillStyle = 'black';
+    ctx.beginPath();
+    ctx.arc(hole.x, hole.y, hole.radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Pull force if close
+  if (dist < 200) {
+    const dx = hole.x - player.x;
+    const dy = hole.y - player.y;
+    const angle = Math.atan2(dy, dx);
+    const pullStrength = (200 - dist) / 500;
+    player.x += Math.cos(angle) * pullStrength;
+    player.y += Math.sin(angle) * pullStrength;
+  }
+
+  // Death if too close
+  if (dist < hole.radius + player.radius) {
+    gameOver = true;
+    showGameOver();
+    location.reload();
+  }
+});
+
+      // Score and health bar
+      ctx.fillStyle = 'white';
+      ctx.font = '20px Arial';
+      ctx.fillText('Score: ' + score, 20, 30);
+
+      ctx.fillStyle = 'red';
+      ctx.fillRect(20, 50, 100, 10);
+      ctx.fillStyle = 'lime';
+      ctx.fillRect(20, 50, health, 10);
+      ctx.strokeStyle = 'white';
+      ctx.strokeRect(20, 50, 100, 10);
+    }
+
+    function spawnEnemies() {
+      setInterval(() => {
+        if (gameOver) return;
+
+        const radius = Math.random() * (30 - 10) + 10;
+        let x, y;
+
+        if (Math.random() < 0.5) {
+          x = Math.random() < 0.5 ? 0 - radius : canvas.width + radius;
+          y = Math.random() * canvas.height;
+        } else {
+          x = Math.random() * canvas.width;
+          y = Math.random() < 0.5 ? 0 - radius : canvas.height + radius;
+        }
+
+        const angle = Math.atan2(player.y - y, player.x - x);
+        const velocity = {
+  x: Math.cos(angle) * (1 + level * 0.2),
+  y: Math.sin(angle) * (1 + level * 0.2),
+};
+
+        enemies.push(new Enemy(x, y, radius, "red", velocity));
+      }, 1000);
+    }
+
+    function spawnChalk() {
+      setInterval(() => {
+        if (!gameOver) {
+          const x = Math.random() * canvas.width;
+          const y = Math.random() * canvas.height;
+          chalks.push(new Chalk(x, y));
+        }
+      }, 5000);
+    }
+
+    function startTimers() {
+      setInterval(() => {
+        if (!gameOver) {
+          health -= 10;
+          if (health <= 0) {
+            gameOver = true;
+            alert("Game Over! Score: " + score);
+            location.reload();
+          }
+        }
+      }, 1000);
+
+      setInterval(() => {
+  if (!gameOver) {
+    score += 1;
+    secondsSurvived += 1;
+
+    if (secondsSurvived % 20 === 0) {
+      level += 1;
+      alert("Level Up! Now Level " + level);
+    }
+  }
+}, 1000);
+    }
+
+    // Touch control
+    canvas.addEventListener("touchstart", (event) => {
+      const touch = event.touches[0];
+      player.moveTo(touch.clientX, touch.clientY);
+    });
+
+    // Desktop mouse support
+    canvas.addEventListener("click", (event) => {
+      player.moveTo(event.clientX, event.clientY);
+    });
+
+function startGame() {
+  document.getElementById("startScreen").style.display = "none";
+  document.getElementById("gameOverScreen").style.display = "none";
+
+  // Reset state
+  enemies.length = 0;
+  chalks.length = 0;
+  health = 100;
+  score = 0;
+  level = 1;
+  secondsSurvived = 0;
+  gameOver = false;
+  player.x = canvas.width / 2;
+  player.y = canvas.height / 2;
+  player.moveTo(player.x, player.y);
+
+  animate();
+  spawnEnemies();
+  spawnChalk();
+  startTimers();
+}
+
+function showGameOver() {
+  gameOver = true;
+  document.getElementById("finalScore").innerText = `Your Score: ${score}`;
+  document.getElementById("gameOverScreen").style.display = "flex";
+}
+
+function restartGame() {
+  showGameOver(); // Hide modal manually first
+  startGame();
+}
+
+function goToMenu() {
+  document.getElementById("gameOverScreen").style.display = "none";
+  document.getElementById("startScreen").style.display = "flex";
+}
+
+  </script>
+</body>
+</html>
