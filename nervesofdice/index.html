@@ -1,1 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Forbidden Dice</title>
+  <style>
+    /* Importing a modern font */
+    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
+    :root {
+      --primary-color: rgba(255, 255, 255, 0.1);
+      --secondary-color: rgba(255, 255, 255, 0.05);
+      --border-color: rgba(255, 255, 255, 0.2);
+      --text-color: #ffffff;
+      --accent-color: #ff6ec4;
+      --gradient-start: #ff6ec4;
+      --gradient-end: #7873f5;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Roboto', sans-serif;
+      color: var(--text-color);
+      background: linear-gradient(-45deg, var(--gradient-start), var(--gradient-end), #4facfe, #00f2fe);
+      background-size: 400% 400%;
+      animation: gradientBG 15s ease infinite;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    @keyframes gradientBG {
+      0% {background-position: 0% 50%;}
+      50% {background-position: 100% 50%;}
+      100% {background-position: 0% 50%;}
+    }
+
+    .glass-card {
+      background: var(--primary-color);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+      padding: 20px;
+      margin: 10px;
+      width: 90%;
+      max-width: 400px;
+      text-align: center;
+    }
+
+    h1, h2 {
+      margin-bottom: 10px;
+    }
+
+    .player-box {
+      background: var(--secondary-color);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 15px;
+      margin: 10px 0;
+    }
+
+    .dice {
+      font-size: 5rem;
+      margin: 20px 0;
+      transition: transform 0.3s;
+    }
+
+    .dice.roll {
+      transform: rotate(360deg);
+    }
+
+    .blinking {
+      animation: blink 1s infinite;
+      background: HSLA(138,78%,49%,0.27);
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    button {
+      background: var(--accent-color);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      padding: 10px 20px;
+      margin: 5px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background: #ff85c1;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @media (min-width: 600px) {
+      .players-container {
+        display: flex;
+        justify-content: space-around;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="setup" class="glass-card">
+    <h1>Forbidden Dice</h1>
+    <label for="playerCount">Select number of players:</label>
+    <select id="playerCount">
+      <option value="1">1 Player</option>
+      <option value="2">2 Players</option>
+      <option value="3">3 Players</option>
+      <option value="4">4 Players</option>
+    </select>
+    <br /><br />
+    <button onclick="handleStart()">Start Game</button>
+  </div>
+
+  <div id="forbiddenScreen" class="glass-card hidden">
+    <h2>Rolling Forbidden Number...</h2>
+    <div id="forbiddenDice" class="dice">🎲</div>
+  </div>
+
+  <div id="game" class="glass-card hidden">
+    <h2>Forbidden Number: <span id="forbidden">?</span></h2>
+    <div id="turnInfo">Current Turn: <span id="turn">Player 1</span></div>
+    <div id="playersContainer" class="players-container"></div>
+    <div id="dice" class="dice">🎲</div>
+    <button onclick="rollDice()">Roll</button>
+    <button onclick="hold()">Hold</button>
+  </div>
+
+  <div id="gameOverModal" class="glass-card hidden">
+    <h2 id="modalWinnerMsg">Player X wins! 🏆</h2>
+    <button onclick="playAgain()">Play Again</button>
+    <button onclick="resetGame()">Reset</button>
+  </div>
+
+  <audio id="diceRollSound" src="path/to/dice-roll.mp3"></audio>
+  <audio id="buzzSound" src="path/to/buzz.mp3"></audio>
+  <audio id="winSound" src="path/to/win.mp3"></audio>
+  <audio id="backgroundMusic" src="assets/jazz-background-music-338663.mp3" loop></audio>
+
+  <script>
+    // Game state variables
+    let players = 1;
+    let scores = [];
+    let roundScores = [];
+    let currentPlayer = 0;
+    let forbidden = 0;
+    let gameOver = false;
+    let isSinglePlayer = false;
+    let actualPlayers = 1;
+
+    // Audio elements
+    const diceRollSound = document.getElementById('diceRollSound');
+    const buzzSound = document.getElementById('buzzSound');
+    const winSound = document.getElementById('winSound');
+    const backgroundMusic = document.getElementById('backgroundMusic');
+
+    function getDiceFace(n) {
+      return ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"][n - 1];
+    }
+
+    function handleStart() {
+      const selected = parseInt(document.getElementById("playerCount").value);
+      startGame(selected);
+    }
+
+    function startGame(p) {
+      isSinglePlayer = p === 1;
+      actualPlayers = p;
+      players = isSinglePlayer ? 2 : p; // 1 human + 1 AI
+      scores = new Array(players).fill(0);
+      roundScores = new Array(players).fill(0);
+      currentPlayer = 0;
+      gameOver = false;
+
+      document.getElementById("setup").classList.add("hidden");
+      document.getElementById("game").classList.add("hidden");
+      document.getElementById("forbiddenScreen").classList.remove("hidden");
+
+      // Start background music
+      backgroundMusic.volume = 0.5;
+      backgroundMusic.play();
+
+      let rollInterval = setInterval(() => {
+        let tempRoll = Math.floor(Math.random() * 6) + 1;
+        document.getElementById("forbiddenDice").textContent = getDiceFace(tempRoll);
+      }, 100);
+
+      setTimeout(() => {
+        clearInterval(rollInterval);
+        forbidden = Math.floor(Math.random() * 6) + 1;
+        document.getElementById("forbiddenDice").textContent = getDiceFace(forbidden);
+        setTimeout(() => {
+          document.getElementById("forbiddenScreen").classList.add("hidden");
+          document.getElementById("game").classList.remove("hidden");
+          document.getElementById("forbidden").textContent = forbidden;
+          generatePlayerBoxes();
+          updateTurnDisplay();
+        }, 1000);
+      }, 2000);
+    }
+
+    function generatePlayerBoxes() {
+      const container = document.getElementById("playersContainer");
+      container.innerHTML = "";
+      for (let i = 0; i < players; i++) {
+        const div = document.createElement("div");
+        div.id = `player-${i}`;
+        div.className = "player-box";
+        const label = isSinglePlayer && i === 1 ? "Computer" : `Player ${i + 1}`;
+        div.innerHTML = `
+          <h3>${label}</h3>
+          <p>Saved: <span id="score-${i}">0</span></p>
+          <p>Round: <span id="round-${i}">0</span></p>
+        `;
+        container.appendChild(div);
+      }
+    }
+
+    function updateTurnDisplay() {
+      const name = isSinglePlayer && currentPlayer === 1 ? "Computer" : `Player ${currentPlayer + 1}`;
+      document.getElementById("turn").textContent = name;
+
+      for (let i = 0; i < players; i++) {
+        const playerBox = document.getElementById(`player-${i}`);
+        if (playerBox) {
+          playerBox.classList.remove("blinking");
+        }
+      }
+
+      const currentBox = document.getElementById(`player-${currentPlayer}`);
+      if (currentBox) {
+        currentBox.classList.add("blinking");
+      }
+    }
+
+  
+    function rollDice() {
+      if (gameOver) return;
+
+      let roll = Math.floor(Math.random() * 6) + 1;
+      const diceElement = document.getElementById("dice");
+      diceElement.textContent = getDiceFace(roll);
+      diceElement.classList.add("roll");
+      diceRollSound.currentTime = 0;
+      diceRollSound.play();
+
+      setTimeout(() => {
+        diceElement.classList.remove("roll");
+      }, 300);
+
+      if (roll === forbidden) {
+        roundScores[currentPlayer] = 0;
+        buzzSound.currentTime = 0;
+        buzzSound.play();
+        updateScores();
+        switchTurn();
+      } else {
+        roundScores[currentPlayer] += roll;
+        updateScores();
+      }
+    }
+
+    function hold() {
+      if (gameOver) return;
+
+      scores[currentPlayer] += roundScores[currentPlayer];
+      roundScores[currentPlayer] = 0;
+      updateScores();
+
+      if (scores[currentPlayer] >= 50) {
+        winSound.currentTime = 0;
+        winSound.play();
+        gameOver = true;
+        document.getElementById("modalWinnerMsg").textContent = `${isSinglePlayer && currentPlayer === 1 ? "Computer" : `Player ${currentPlayer + 1}`} wins! 🏆`;
+        document.getElementById("gameOverModal").classList.remove("hidden");
+        return;
+      }
+
+      switchTurn();
+    }
+
+    function updateScores() {
+      for (let i = 0; i < players; i++) {
+        const saved = document.getElementById(`score-${i}`);
+        const round = document.getElementById(`round-${i}`);
+        if (saved) saved.textContent = scores[i];
+        if (round) round.textContent = roundScores[i];
+      }
+    }
+
+    function switchTurn() {
+      currentPlayer = (currentPlayer + 1) % players;
+      updateTurnDisplay();
+      if (isSinglePlayer && currentPlayer === 1) {
+        setTimeout(aiTurn, 1000);
+      }
+    }
+
+    function aiTurn() {
+      if (gameOver) return;
+      let aiRounds = 0;
+      function aiRoll() {
+        if (aiRounds >= 3 || gameOver) {
+          hold();
+          return;
+        }
+        let roll = Math.floor(Math.random() * 6) + 1;
+        document.getElementById("dice").textContent = getDiceFace(roll);
+        diceRollSound.currentTime = 0;
+        diceRollSound.play();
+
+        if (roll === forbidden) {
+          roundScores[1] = 0;
+          buzzSound.play();
+          updateScores();
+          switchTurn();
+        } else {
+          roundScores[1] += roll;
+          updateScores();
+          aiRounds++;
+          setTimeout(aiRoll, 800);
+        }
+      }
+      setTimeout(aiRoll, 800);
+    }
+
+    function playAgain() {
+      scores = new Array(players).fill(0);
+      roundScores = new Array(players).fill(0);
+      currentPlayer = 0;
+      gameOver = false;
+      document.getElementById("gameOverModal").classList.add("hidden");
+      document.getElementById("forbiddenScreen").classList.remove("hidden");
+      document.getElementById("game").classList.add("hidden");
+
+      let rollInterval = setInterval(() => {
+        let tempRoll = Math.floor(Math.random() * 6) + 1;
+        document.getElementById("forbiddenDice").textContent = getDiceFace(tempRoll);
+      }, 100);
+
+      setTimeout(() => {
+        clearInterval(rollInterval);
+        forbidden = Math.floor(Math.random() * 6) + 1;
+        document.getElementById("forbiddenDice").textContent = getDiceFace(forbidden);
+        setTimeout(() => {
+          document.getElementById("forbiddenScreen").classList.add("hidden");
+          document.getElementById("game").classList.remove("hidden");
+          document.getElementById("forbidden").textContent = forbidden;
+          generatePlayerBoxes();
+          updateTurnDisplay();
+        }, 1000);
+      }, 2000);
+    }
+
+    function resetGame() {
+      backgroundMusic.pause();
+      backgroundMusic.currentTime = 0;
+      document.getElementById("setup").classList.remove("hidden");
+      document.getElementById("game").classList.add("hidden");
+      document.getElementById("gameOverModal").classList.add("hidden");
+    }
+</script>
+  </body>
+</html>
