@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Manual Mic Recorder</title>
+  <title>Audio Recorder</title>
   <style>
     body { font-family: sans-serif; text-align: center; padding: 2em; }
     button { padding: 0.6em 1.2em; margin: 0.5em; font-size: 1.1em; }
@@ -36,6 +36,24 @@
     let currentLabel = '';
     const sounds = {};
 
+    // Function to determine supported MIME type
+    function getSupportedMimeType() {
+      const possibleTypes = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/ogg;codecs=opus',
+        'audio/ogg',
+        'audio/mp4',
+        'audio/mpeg'
+      ];
+      for (const type of possibleTypes) {
+        if (MediaRecorder.isTypeSupported(type)) {
+          return type;
+        }
+      }
+      return '';
+    }
+
     document.getElementById("startBtn").addEventListener("click", () => {
       navigator.mediaDevices.getUserMedia({ audio: true })
         .then(s => {
@@ -54,15 +72,26 @@
       currentLabel = label;
       const chunks = [];
 
-      const mimeType = MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : 'audio/webm';
-mediaRecorder = new MediaRecorder(stream, { mimeType });
+      const mimeType = getSupportedMimeType();
+      if (!mimeType) {
+        alert("No supported MIME type found for recording.");
+        return;
+      }
+
+      try {
+        mediaRecorder = new MediaRecorder(stream, { mimeType });
+      } catch (e) {
+        console.error("Exception while creating MediaRecorder:", e);
+        alert("MediaRecorder is not supported with the selected MIME type.");
+        return;
+      }
+
       mediaRecorder.ondataavailable = e => chunks.push(e.data);
       mediaRecorder.onstop = () => {
-  const blob = new Blob(chunks, { type: mediaRecorder.mimeType });
-  console.log("Blob recorded:", blob);
-  sounds[label] = URL.createObjectURL(blob);
-  alert(`Recorded "${label}" sound.`);
-};
+        const blob = new Blob(chunks, { type: mimeType });
+        sounds[label] = URL.createObjectURL(blob);
+        alert(`Recorded "${label}" sound.`);
+      };
 
       mediaRecorder.start();
       console.log("Recording started:", label);
@@ -76,11 +105,14 @@ mediaRecorder = new MediaRecorder(stream, { mimeType });
       mediaRecorder.stop();
       console.log("Recording stopped:", currentLabel);
     }
-console.log("Opening recorded blob in new tab...");
-window.open(sounds[label]);
+
     function play(label) {
       if (!sounds[label]) return alert(`No sound recorded for "${label}".`);
-      new Audio(sounds[label]).play();
+      const audio = new Audio(sounds[label]);
+      audio.play().catch(err => {
+        console.error("Playback failed:", err);
+        alert("Playback failed.");
+      });
     }
   </script>
 </body>
