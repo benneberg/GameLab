@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MiniGames</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            'neumorph-light': '#e0e0e0',
+            'neumorph-dark': '#1e1e1e',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /*
+    body {
+      background: linear-gradient(-45deg, #f0f0f0, #e6e6e6);
+      background-size: 400% 400%;
+      animation: gradientBG 25s ease infinite;
+    }
+    .dark body {
+      background: linear-gradient(-45deg, #0f172a, #1e293b, #0d9488, #1e1e1e);
+    }
+    @keyframes gradientBG {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+   */ 
+ @keyframes gradientBG {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animate-gradient {
+  animation: gradientBG 20s ease infinite;
+}
+
+.bg-gradient-light {
+  background: linear-gradient(-45deg, #f0f0f0, #e6e6e6, #d1d1d1, #ffffff);
+}
+
+.bg-gradient-dark {
+  background: linear-gradient(-45deg, #0f172a, #1e3a8a, #0d9488, #1e1e1e);
+}
+
+    
+    .blob {
+      position: absolute;
+      width: 300px;
+      height: 300px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      filter: blur(60px);
+      animation: floatBlob 20s ease-in-out infinite alternate;
+      z-index: 0;
+    }
+    @keyframes floatBlob {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(100px, 50px) scale(1.2); }
+    }
+    .glass-card {
+      backdrop-filter: blur(12px);
+      background-color: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      position: relative;
+      z-index: 1;
+    }
+    .glass-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      border: 1px solid transparent;
+      background: linear-gradient(120deg, rgba(255,255,255,0.2), rgba(255,255,255,0));
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask-composite: exclude;
+      pointer-events: none;
+    }
+    .toggle-switch {
+      width: 50px;
+      height: 26px;
+      border-radius: 30px;
+      background: #e0e0e0;
+      box-shadow: inset 4px 4px 8px #bebebe, inset -4px -4px 8px #ffffff;
+      position: relative;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .toggle-switch::after {
+      content: "";
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      top: 2px;
+      left: 2px;
+      background: #fff;
+      border-radius: 50%;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+      transition: 0.3s ease;
+    }
+    .dark .toggle-switch {
+      background: #1e1e1e;
+      box-shadow: inset 4px 4px 8px #121212, inset -4px -4px 8px #2e2e2e;
+    }
+    .dark .toggle-switch::after {
+      left: 26px;
+      background: #ccc;
+    }
+  </style>
+</head>
+<body class="font-sans text-gray-800 dark:text-white transition-colors duration-300 overflow-x-hidden relative">
+
+<!-- Background Gradient: Light -->
+<div class="fixed inset-0 -z-10 animate-gradient bg-[length:400%_400%] bg-gradient-light dark:hidden"></div>
+
+<!-- Background Gradient: Dark -->
+<div class="fixed inset-0 -z-10 animate-gradient bg-[length:400%_400%] bg-gradient-dark hidden dark:block"></div>
+  <!-- Sidebar Toggle Button (Joystick Icon) -->
+<button id="sidebarToggle" class="fixed top-6 left-6 z-20 bg-white dark:bg-gray-800 p-2 rounded-full shadow-lg hover:scale-105 transition-all">
+  <img src="https://cdn-icons-png.flaticon.com/512/929/929420.png" alt="Menu" class="w-6 h-6 invert dark:invert-0" />
+</button>
+  
+<!-- Sidebar -->
+<aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-white dark:bg-gray-900 shadow-2xl transform -translate-x-full transition-transform duration-300 z-20">
+  <div class="pt-10 px-6 pb-6 border-t border-gray-300 dark:border-gray-700">
+    <h2 class="text-2xl font-bold mb-4 text-gray-900 dark:text-white">Game Menu</h2>
+    <ul class="space-y-4 text-gray-700 dark:text-gray-300">
+      <li><a href="paybackpool/" class="hover:text-cyan-500">Play PaybackPool</a></li>
+      <li><a href="anothergame/" class="hover:text-purple-400">Try Another Game</a></li>
+      <li><button id="themeToggle2" class="mt-4 px-3 py-2 rounded bg-gray-200 dark:bg-gray-800 dark:text-white text-sm">Toggle Theme</button></li>
+    </ul>
+  </div>
+</aside>
+  
+  <!-- Animated blobs -->
+  <div class="blob" style="top: 15%; left: 5%;"></div>
+  <div class="blob" style="bottom: 10%; right: 5%; animation-delay: 10s;"></div>
+
+  <!-- Toggle Theme -->
+  <div class="fixed top-6 right-6 z-20">
+    <!-- Vertical Theme Toggle -->
+<div id="themeToggle" class="w-5 h-10 bg-[#e0e0e0] dark:bg-[#1e1e1e] rounded-full shadow-inner flex flex-col justify-between p-1 cursor-pointer transition-all duration-300">
+  <div class="w-3 h-3 rounded-full bg-white dark:bg-gray-300 shadow-md transform translate-y-0 transition-transform duration-300"></div>
+</div>
+  </div>
+
+  <!-- Header / Logo -->
+  <header class="text-center mt-16 mb-12 relative z-10">
+    <h1 class="text-5xl font-extrabold bg-gradient-to-r from-blue-400 via-cyan-400 to-emerald-400 bg-clip-text text-transparent drop-shadow-lg">
+      MiniGames
+    </h1>
+    <p class="text-gray-600 dark:text-gray-300 mt-2">Fun & addictive browser games built with love.</p>
+  </header>
+
+  <!-- Game Cards -->
+  <main class="container mx-auto px-6 relative z-10">
+    <div class="grid gap-10 sm:grid-cols-2 lg:grid-cols-3 mb-20">
+      
+      <!-- Game 1 -->
+      <a href="paybackpool/" class="glass-card rounded-xl overflow-hidden shadow-lg hover:scale-105 transition-transform duration-300">
+        <img src="https://placehold.co/600x400/0f172a/ffffff?text=PaybackPool" alt="PaybackPool" class="w-full object-cover">
+        <div class="p-5 bg-[rgba(255,255,255,0.7)] dark:bg-[rgba(0,0,0,0.7)]">
+          <h2 class="text-2xl font-semibold mb-2">PaybackPool</h2>
+          <p class="text-black/70 dark:text-white/70">Evade enemies, dodge black holes, and survive with skill.</p>
+        </div>
+      </a>
+
+      <!-- Game 2 -->
+      <a href="anothergame/" class="glass-card rounded-xl overflow-hidden shadow-lg hover:scale-105 transition-transform duration-300">
+        <img src="https://placehold.co/600x400/1e293b/ffffff?text=Another+Game" alt="Another Game" class="w-full object-cover">
+        <div class="p-5">
+          <h2 class="text-2xl font-semibold mb-2">Another Game</h2>
+          <p class="text-white/70">Puzzle, action, or chaos? Coming soon.</p>
+        </div>
+      </a>
+
+      <!-- Coming Soon -->
+      <div class="glass-card rounded-xl overflow-hidden shadow-lg opacity-50 cursor-not-allowed">
+        <img src="https://placehold.co/600x400/333/aaa?text=Coming+Soon" alt="Coming Soon" class="w-full object-cover">
+        <div class="p-5">
+          <h2 class="text-2xl font-semibold mb-2">More Games</h2>
+          <p class="text-white/50">New games and modes on the way. Stay tuned!</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="text-center text-sm py-6 text-white/40 relative z-10">
+    &copy; 2025 Your Name. All games handcrafted with vanilla JavaScript.
+  </footer>
+<script>
+  const themeToggleMain = document.getElementById("themeToggle");
+  const themeToggleSidebar = document.getElementById("themeToggle2");
+  const sidebar = document.getElementById("sidebar");
+  const sidebarToggle = document.getElementById("sidebarToggle");
+
+  // Toggle dark mode + move knob
+  function toggleTheme() {
+    document.documentElement.classList.toggle("dark");
+
+    const knob = themeToggleMain.querySelector("div");
+    const isDark = document.documentElement.classList.contains("dark");
+    knob.style.transform = isDark ? "translateY(21px)" : "translateY(0)";
+  }
+
+  // Theme toggles
+  if (themeToggleMain) themeToggleMain.addEventListener("click", toggleTheme);
+  if (themeToggleSidebar) themeToggleSidebar.addEventListener("click", toggleTheme);
+
+  // Sidebar toggle
+  sidebarToggle.addEventListener("click", () => {
+    sidebar.classList.toggle("-translate-x-full");
+  });
+
+  // Click outside to close sidebar
+  document.addEventListener("click", (e) => {
+    const isClickInsideSidebar = sidebar.contains(e.target);
+    const isClickOnToggle = sidebarToggle.contains(e.target);
+    const sidebarOpen = !sidebar.classList.contains("-translate-x-full");
+
+    if (sidebarOpen && !isClickInsideSidebar && !isClickOnToggle) {
+      sidebar.classList.add("-translate-x-full");
+    }
+  });
+</script>
+
+</body>
+</html>
