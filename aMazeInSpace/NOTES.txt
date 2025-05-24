@@ -1,0 +1,78 @@
+
+
+UI elements one might want to adjust:
+
+Ball size: Find const ballSize = TILE_SIZE / 2.5; 
+Start/end markers: Look for TILE_SIZE * 0.4 in the drawPath function 
+Timer bar: Find the barWidth, barHeight, barX, barY
+
+adjust the track width by modifying the ctx.lineWidth parameter in the drawPath function.
+
+collision detection, update the isOnTrack function
+
+For any color changes, 
+look for the CSS color codes like #00ff00 or rgba(0, 255, 255, 0.8) throughout the code.
+
+
+
+Try additional sound effects for game interactions (optional)
+You could also add subtle rolling sounds for the ball or "ping" sounds when passing certain points:
+
+// Add to your update function for rolling sounds
+let lastPlayedRollSound = 0;
+function update() {
+  if (!running || gameOver) return;
+  
+  // Add rolling sound if ball is moving fast enough
+  const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+  if (speed > 1 && audioEnabled) {
+    const now = Date.now();
+    if (now - lastPlayedRollSound > 300) { // Play every 300ms at most
+      // Create a "rolling" sound - very subtle
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      
+      oscillator.type = 'sine';
+      oscillator.frequency.value = 100 + speed * 20; // Higher pitch with higher speed
+      oscillator.connect(gainNode);
+      
+      gainNode.gain.value = 0.03; // Very quiet
+      gainNode.connect(audioCtx.destination);
+      
+      oscillator.start();
+      setTimeout(() => {
+        oscillator.stop();
+      }, 50); // Very short duration
+      
+      lastPlayedRollSound = now;
+    }
+  }
+  
+  // ... rest of update function
+}
+
+
+
+
+File sizes: Keep audio files small for fast loading:
+
+Background music: Use a compressed MP3 (~1-3MB)
+Sound effects: Short MP3s (~50-200KB each)
+
+
+Audio formats: Include fallbacks for broader browser support:
+<audio id="sound-win" preload="auto">
+  <source src="assets/audio/win.mp3" type="audio/mpeg">
+  <source src="assets/audio/win.ogg" type="audio/ogg">
+</audio>
+
+
+Free resources: Get royalty-free game audio from:
+
+Freesound.org
+OpenGameArt.org
+FreePD.com (for background music)
+
+
+Credit: Remember to check licenses and give proper attribution if required.

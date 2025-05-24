@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Super Bomb Sweeper</title>
+        <link rel="stylesheet" href="styles.css" />
+    </head>
+    <body>
+        <button id="showLeaderboard" class="floating-button">
+            Show Leaderboard
+        </button>
+
+        <div id="leaderboardModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Leaderboards</h2>
+                <div id="leaderboardContent">
+                    <h3>Highest Points</h3>
+                    <ol id="pointsLeaderboard"></ol>
+                    <h3>Fastest Times</h3>
+                    <select id="difficultySelect">
+                        <option value="EASY">Easy</option>
+                        <option value="NORMAL">Normal</option>
+                        <option value="HARD">Hard</option>
+                        <option value="IMPOSSIBLE">Impossible</option>
+                    </select>
+                    <ol id="timeLeaderboard"></ol>
+                </div>
+            </div>
+        </div>
+
+        <div id="titleScreen">
+            <h1>Super Bomb Sweeper</h1>
+            <button id="startGame">Start Game</button>
+        </div>
+
+        <div id="loginScreen" style="display: none">
+            <h2>Login</h2>
+            <input type="text" id="playerName" placeholder="Username" />
+            <input type="password" id="playerPassword" placeholder="Password" />
+            <button id="login">Login</button>
+        </div>
+
+        <div id="difficultyScreen" style="display: none">
+            <h2>Select Difficulty</h2>
+            <div id="playerInfoDisplay"></div>
+            <button id="easyButton">Easy</button>
+            <button id="normalButton">Normal</button>
+            <button id="hardButton">Hard</button>
+            <button id="impossibleButton">Impossible</button>
+        </div>
+
+        <div id="gameScreen" style="display: none">
+            <div id="playerDisplay"></div>
+            <div id="pointsDisplay"></div>
+            <div id="timeDisplay"></div>
+            <div id="gameBoard"></div>
+        </div>
+
+        <div id="gameOverScreen" style="display: none">
+            <h2>Game Over</h2>
+            <div id="gameOverMessage"></div>
+            <div id="timeTaken"></div>
+            <div id="finalScore"></div>
+            <div id="leaderboards">
+                <ol id="timeLeaderboard"></ol>
+                <ol id="pointsLeaderboard"></ol>
+            </div>
+            <button id="playAgainButton">Play Again</button>
+            <button id="newGame" style="display: none">Play Again</button>
+        </div>
+
+        <script src="game.js"></script>
+    </body>
+</html>

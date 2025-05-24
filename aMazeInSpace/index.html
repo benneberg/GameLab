@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Space Labyrinth Game</title>
+  <style>
+    body { 
+      margin: 0; 
+      background: #000; 
+      color: #fff; 
+      text-align: center; 
+      font-family: sans-serif;
+      overflow: hidden;
+      touch-action: none;
+    }
+    canvas { 
+      background: transparent; 
+      display: block; 
+      margin: 0 auto; 
+      border: 2px solid #fff;
+      position: relative;
+      z-index: 10;
+    }
+    #ui { 
+      margin: 10px; 
+      position: relative;
+      z-index: 20;
+    }
+    button { 
+        padding: 10px 20px;
+    margin: 5px;
+    font-size: 16px;
+    background: #e31093d4;
+    color: #fff;
+    border: 1px solid #888;
+    border-radius: 3px;
+    }
+    #message { 
+        top: 40%;
+    font-size: 20px;
+    right: 10%;
+    position: absolute;
+    z-index: 20;
+    left: 10%;
+ 
+    padding: 2rem 0 1rem 0;
+    border-radius: 10px;
+    }
+    h1 {
+      margin: 10px 0;
+      position: relative;
+      z-index: 20;
+      text-shadow: 0 0 10px #00f, 0 0 20px #00f;
+    }
+    .card {
+        background: rgba(0, 0, 0, 0.8);
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+    }
+    #game-container {
+      position: relative;
+      margin: 0 auto;
+      width: 100%;
+      max-width: 600px;
+    }
+    #background-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+    #permission-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+    #permission-button {
+      background: #0066ff;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      font-size: 18px;
+      border-radius: 8px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+    <!-- Audio elements -->
+<audio id="background-music" loop preload="auto">
+    <source src="assets/audio/background-music.mp3" type="audio/mpeg">
+  </audio>
+  <audio id="sound-win" preload="auto">
+    <source src="assets/audio/win.mp3" type="audio/mpeg">
+  </audio>
+  <audio id="sound-game-over" preload="auto">
+    <source src="assets/audio/game-over.mp3" type="audio/mpeg">
+  </audio>
+  <audio id="sound-game-start" preload="auto">
+    <source src="assets/audio/game-start.mp3" type="audio/mpeg">
+  </audio>
+  <audio id="sound-button-click" preload="auto">
+    <source src="assets/audio/button-click.mp3" type="audio/mpeg">
+  </audio>
+  <div id="permission-overlay">
+    <h2>Space Labyrinth Game</h2>
+    <p>This game uses device motion to control the ball.</p>
+    <p>Please hold your phone in a flat position.</p>
+    <button id="permission-button">Start Game</button>
+  </div>
+
+  <h1>Space Labyrinth Game</h1>
+  <div id="ui">
+    <button onclick="startGame('easy')">Easy</button>
+    <button onclick="startGame('hard')">Hard</button>
+    <button id="audio-toggle" onclick="toggleAudio()">🔊</button>
+  </div>
+  <div id="game-container">
+    <canvas id="background-canvas"></canvas>
+    <canvas id="canvas" width="400" height="400"></canvas>
+  </div>
+  <div id="message"></div>
+
+  <script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const bgCanvas = document.getElementById("background-canvas");
+    const bgCtx = bgCanvas.getContext("2d");
+    const permissionOverlay = document.getElementById("permission-overlay");
+    const permissionButton = document.getElementById("permission-button");
+
+    // Set canvas sizes
+    function resizeCanvases() {
+      const container = document.getElementById("game-container");
+      const size = Math.min(window.innerWidth - 20, 600);
+      
+      canvas.width = size;
+      canvas.height = size;
+      
+      bgCanvas.width = window.innerWidth;
+      bgCanvas.height = window.innerHeight;
+      
+      container.style.height = size + "px";
+    }
+    
+    window.addEventListener('resize', resizeCanvases);
+    resizeCanvases();
+
+// Initialize audio context for iOS
+function initAudioContext() {
+  // Create a short audio context to unblock audio on iOS
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  if (AudioContext) {
+    const audioCtx = new AudioContext();
+    
+    // Create a short silent buffer
+    const buffer = audioCtx.createBuffer(1, 1, 22050);
+    const source = audioCtx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audioCtx.destination);
+    source.start(0);
+    
+    // Resume audio context
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  }
+}
+
+    const TILE_SIZE = canvas.width / 21; // Adjust tile size based on canvas width
+    let path = [];
+    let rows, cols;
+    let ball = { x: 1.5, y: 1.5, vx: 0, vy: 0 };
+    let totalTime = 0, timeLeft = 0;
+    let running = false, gameOver = false;
+    let difficulty = 'easy';
+    let permissionGranted = false;
+    let calibration = { x: 0, y: 0 };
+    let stars = [];
+    let rockets = [];
+    let ufos = [];
+
+    // Initialize stars
+    function initStars(count) {
+      stars = [];
+      for (let i = 0; i < count; i++) {
+        stars.push({
+          x: Math.random() * bgCanvas.width,
+          y: Math.random() * bgCanvas.height,
+          size: Math.random() * 3 + 1,
+          speed: Math.random() * 0.5 + 0.1,
+          opacity: Math.random() * 0.8 + 0.2
+        });
+      }
+    }
+
+    // Initialize space objects
+    function initSpaceObjects() {
+      // Create rockets
+      rockets = [];
+      for (let i = 0; i < 3; i++) {
+        rockets.push({
+          x: Math.random() * bgCanvas.width,
+          y: Math.random() * bgCanvas.height,
+          width: 40,
+          height: 80,
+          speedX: (Math.random() - 0.2) * 2,
+          speedY: (Math.random() - 0.2) * 2,
+          rotation: Math.random() * Math.PI * 2
+        });
+      }
+      
+      // Create UFOs
+      ufos = [];
+      for (let i = 0; i < 4; i++) {
+        ufos.push({
+          x: Math.random() * bgCanvas.width,
+          y: Math.random() * bgCanvas.height,
+          radius: 25 + Math.random() * 15,
+          speedX: (Math.random() - 0.2) * 1.5,
+          speedY: (Math.random() - 0.2) * 1.5,
+          bobAmount: Math.random() * 0.5 + 0.5,
+          bobSpeed: Math.random() * 0.05 + 0.02,
+          bobOffset: Math.random() * Math.PI * 2
+        });
+      }
+    }
+
+    // Draw a rocket
+    function drawRocket(x, y, width, height, rotation) {
+      bgCtx.save();
+      bgCtx.translate(x, y);
+      bgCtx.rotate(rotation);
+      
+      // Rocket body
+      bgCtx.fillStyle = "#ff4400";
+      bgCtx.beginPath();
+      bgCtx.moveTo(0, -height/2);
+      bgCtx.lineTo(width/2, height/4);
+      bgCtx.lineTo(width/2, height/2);
+      bgCtx.lineTo(-width/2, height/2);
+      bgCtx.lineTo(-width/2, height/4);
+      bgCtx.closePath();
+      bgCtx.fill();
+      
+      // Rocket tip
+      bgCtx.fillStyle = "#ff8800";
+      bgCtx.beginPath();
+      bgCtx.moveTo(0, -height/2);
+      bgCtx.lineTo(width/4, -height/4);
+      bgCtx.lineTo(-width/4, -height/4);
+      bgCtx.closePath();
+      bgCtx.fill();
+      
+      // Windows
+      bgCtx.fillStyle = "#88ddff";
+      bgCtx.beginPath();
+      bgCtx.arc(0, -height/8, width/6, 0, Math.PI * 2);
+      bgCtx.fill();
+      
+      // Exhaust
+      bgCtx.fillStyle = "#ffaa00";
+      bgCtx.beginPath();
+      bgCtx.moveTo(-width/3, height/2);
+      bgCtx.lineTo(width/3, height/2);
+      bgCtx.lineTo(0, height/2 + height/3);
+      bgCtx.closePath();
+      bgCtx.fill();
+      
+      bgCtx.restore();
+    }
+
+    // Draw a UFO
+    function drawUFO(x, y, radius, time) {
+      bgCtx.save();
+      bgCtx.translate(x, y);
+      
+      // UFO dome
+      bgCtx.fillStyle = "#88ddff";
+      bgCtx.beginPath();
+      bgCtx.arc(0, -radius/3, radius/2, Math.PI, 0, false);
+      bgCtx.fill();
+      
+      // UFO body
+      bgCtx.fillStyle = "#aaaaaa";
+      bgCtx.beginPath();
+      bgCtx.ellipse(0, 0, radius, radius/2, 0, 0, Math.PI * 2);
+      bgCtx.fill();
+      
+      // UFO lights
+      const lightCount = 5;
+      for (let i = 0; i < lightCount; i++) {
+        const angle = (i / lightCount) * Math.PI * 2;
+        const lightRadius = radius * 0.8;
+        const lightX = Math.cos(angle) * lightRadius * 0.8;
+        const lightY = Math.sin(angle) * lightRadius * 0.4;
+        
+        const blinkRate = 0.2 + (i * 0.1);
+        const lightColor = Math.sin(time * blinkRate + i) > 0 ? "#ffff00" : "#ff5500";
+        
+        bgCtx.fillStyle = lightColor;
+        bgCtx.beginPath();
+        bgCtx.arc(lightX, lightY, radius/8, 0, Math.PI * 2);
+        bgCtx.fill();
+      }
+      
+      bgCtx.restore();
+    }
+
+    // Handle permission for device orientation events
+    permissionButton.addEventListener("click", () => {
+        initAudioContext();
+        playSound("sound-button-click");
+      if (typeof DeviceMotionEvent !== 'undefined' && 
+          typeof DeviceMotionEvent.requestPermission === 'function') {
+        // iOS 13+ devices
+        DeviceMotionEvent.requestPermission()
+          .then(response => {
+            if (response === "granted") {
+              permissionGranted = true;
+              permissionOverlay.style.display = "none";
+              setupEventListeners();
+              initStars(100);
+              initSpaceObjects();
+              animateBackground();
+            }
+          })
+          .catch(console.error);
+      } else {
+        // Non iOS 13+ devices
+        permissionGranted = true;
+        permissionOverlay.style.display = "none";
+        setupEventListeners();
+        initStars(100);
+        initSpaceObjects();
+        animateBackground();
+      }
+    });
+
+    function setupEventListeners() {
+      // Device orientation for tilt controls
+      window.addEventListener("deviceorientation", handleOrientation);
+      
+      // Alternative keyboard controls for testing
+      window.addEventListener("keydown", (e) => {
+        switch(e.key) {
+          case "ArrowUp": ball.vy = -3; break;
+          case "ArrowDown": ball.vy = 3; break;
+          case "ArrowLeft": ball.vx = -3; break;
+          case "ArrowRight": ball.vx = 3; break;
+        }
+      });
+      
+      window.addEventListener("keyup", (e) => {
+        switch(e.key) {
+          case "ArrowUp":
+          case "ArrowDown":
+            ball.vy = 0;
+            break;
+          case "ArrowLeft":
+          case "ArrowRight":
+            ball.vx = 0;
+            break;
+        }
+      });
+      
+      // Calibration button - for neutralizing the device's resting position
+      const calibrateBtn = document.createElement("button");
+      calibrateBtn.innerText = "Calibrate";
+      calibrateBtn.onclick = function() {
+  playSound("sound-button-click");
+  calibrateOrientation();
+};
+      document.getElementById("ui").appendChild(calibrateBtn);
+    }
+
+    function handleOrientation(event) {
+      if (!running) return;
+      
+      // For iOS
+      let x = event.gamma; // -90 to 90, left to right
+      let y = event.beta;  // -180 to 180, front to back
+      
+      // Adjust for calibration
+      x -= calibration.x;
+      y -= calibration.y;
+      
+      // Limit tilt range for better control
+      const maxTilt = 20;
+      x = Math.max(Math.min(x, maxTilt), -maxTilt);
+      y = Math.max(Math.min(y, maxTilt), -maxTilt);
+      
+      // Convert to velocity with more sensitivity
+      const sensitivity = 0.2;
+      ball.vx = x * sensitivity;
+      ball.vy = y * sensitivity;
+    }
+
+    function calibrateOrientation(event) {
+      // Use current orientation as the new "zero" position
+      window.addEventListener("deviceorientation", function handler(e) {
+        calibration.x = e.gamma || 0;
+        calibration.y = e.beta || 0;
+        window.removeEventListener("deviceorientation", handler);
+        
+        const msg = document.getElementById("message");
+        msg.innerText = "Calibrated!";
+        setTimeout(() => {
+          if (!gameOver) msg.innerText = "";
+        }, 1500);
+      });
+    }
+
+    function generateMazePath(width, height, startX, startY) {
+  let visited = Array.from({ length: height }, () => Array(width).fill(false));
+  let result = [];
+
+  function dfs(x, y) {
+    visited[y][x] = true;
+    result.push([x, y]);
+    const dirs = shuffle([[1,0], [-1,0], [0,1], [0,-1]]);
+    for (let [dx, dy] of dirs) {
+      let nx = x + dx, ny = y + dy;
+      if (nx >= 0 && ny >= 0 && nx < width && ny < height && !visited[ny][nx]) {
+        dfs(nx, ny);
+        return; // Only carve a single path to the end
+      }
+    }
+  }
+
+  // Start DFS from the provided starting point
+  dfs(startX, startY);
+  return result;
+}
+
+    function shuffle(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function startGame(level) {
+        playSound("sound-button-click");
+  playSound("sound-game-start");
+  
+  // Start background music
+  if (audioEnabled) {
+    const bgMusic = document.getElementById("background-music");
+    bgMusic.play().catch(e => console.log("Could not play background music:", e));
+  }
+  difficulty = level;
+  let size = (level === 'easy') ? 11 : 21;
+  rows = cols = size;
+  
+  // Start from center of the grid
+  const centerX = Math.floor(cols / 2);
+  const centerY = Math.floor(rows / 2);
+  
+  // Use center coordinates
+  path = generateMazePath(cols, rows, centerX, centerY);
+  
+  // Set ball to start at center
+  ball = { x: centerX + 0.5, y: centerY + 0.5, vx: 0, vy: 0 };
+  
+  totalTime = (level === 'easy') ? 30 : 15;
+  timeLeft = totalTime;
+  running = true;
+  gameOver = false;
+  document.getElementById("message").innerText = '';
+  requestAnimationFrame(update);
+}
+
+function drawPath() {
+  if (path.length < 2) return;
+
+  // Calculate the bounds of the path to center it
+  let minX = Infinity, minY = Infinity;
+  let maxX = -Infinity, maxY = -Infinity;
+  
+  // Find the min and max coordinates
+  for (const [x, y] of path) {
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+  }
+  
+  // Calculate the width and height of the path
+  const pathWidth = (maxX - minX + 1) * TILE_SIZE;
+  const pathHeight = (maxY - minY + 1) * TILE_SIZE;
+  
+  // Calculate offsets to center the path
+  const offsetX = (canvas.width - pathWidth) / 2 + TILE_SIZE / 2 - minX * TILE_SIZE;
+  const offsetY = (canvas.height - pathHeight) / 2 + TILE_SIZE / 2 - minY * TILE_SIZE;
+
+  const danger = timeLeft < totalTime * 0.25;
+  ctx.strokeStyle = danger ? '#f00' : '#88f';
+  ctx.lineWidth = TILE_SIZE * 0.5;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  
+  // Apply the offsets when drawing
+  const [startX, startY] = path[0];
+  ctx.moveTo(startX * TILE_SIZE + offsetX, startY * TILE_SIZE + offsetY);
+  
+  for (let i = 1; i < path.length; i++) {
+    const [x, y] = path[i];
+    ctx.lineTo(x * TILE_SIZE + offsetX, y * TILE_SIZE + offsetY);
+  }
+  ctx.stroke();
+  
+  // Draw start and end points with offsets
+  ctx.fillStyle = "#00ff00";
+  ctx.beginPath();
+  ctx.arc(startX * TILE_SIZE + offsetX, startY * TILE_SIZE + offsetY, 
+          TILE_SIZE * 0.4, 0, Math.PI * 2);
+  ctx.fill();
+  
+  const [endX, endY] = path[path.length - 1];
+  ctx.fillStyle = "#ff0000";
+  ctx.beginPath();
+  ctx.arc(endX * TILE_SIZE + offsetX, endY * TILE_SIZE + offsetY, 
+          TILE_SIZE * 0.4, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Store the offsets for ball position calculations
+  window.mazeOffsetX = offsetX - TILE_SIZE / 2;
+  window.mazeOffsetY = offsetY - TILE_SIZE / 2;
+}
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Add slight transparency to game canvas for background visibility
+      ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      drawPath();
+
+      // Ball with glow effect
+      const ballSize = TILE_SIZE / 3.5;
+      
+      // Outer glow
+      const gradient = ctx.createRadialGradient(
+        ball.x * TILE_SIZE, ball.y * TILE_SIZE, ballSize * 0.5,
+        ball.x * TILE_SIZE, ball.y * TILE_SIZE, ballSize * 3
+      );
+      gradient.addColorStop(0, "rgba(0, 255, 255, 0.8)");
+      gradient.addColorStop(0.5, "rgba(0, 255, 255, 0.4)");
+      gradient.addColorStop(1, "rgba(0, 255, 255, 0)");
+      
+      ctx.beginPath();
+      ctx.fillStyle = gradient;
+      ctx.arc(ball.x * TILE_SIZE, ball.y * TILE_SIZE, ballSize * 2, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Ball
+      ctx.beginPath();
+      ctx.fillStyle = "#0ff";
+      ctx.arc(
+  ball.x * TILE_SIZE + window.mazeOffsetX, 
+  ball.y * TILE_SIZE + window.mazeOffsetY, 
+  ballSize, 0, Math.PI * 2
+);
+      ctx.fill();
+      
+      // Shine detail on ball
+      ctx.beginPath();
+ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+ctx.arc(
+  ball.x * TILE_SIZE - ballSize/3 + window.mazeOffsetX, 
+  ball.y * TILE_SIZE - ballSize/3 + window.mazeOffsetY, 
+  ballSize/3, 0, Math.PI * 2
+);
+ctx.fill();
+
+      // Timer with colorful gradient based on time left
+      const timeRatio = timeLeft / totalTime;
+      let timerColor;
+      
+      if (timeRatio > 0.6) {
+        timerColor = "#00ff00"; // Green
+      } else if (timeRatio > 0.3) {
+        timerColor = "#ffff00"; // Yellow
+      } else {
+        timerColor = "#ff0000"; // Red
+      }
+      
+      // Draw timer bar
+      const barWidth = canvas.width - 20;
+      const barHeight = 15;
+      const barX = 10;
+      const barY = 10;
+      
+      // Background
+      ctx.fillStyle = "#444";
+      ctx.fillRect(barX, barY, barWidth, barHeight);
+      
+      // Fill
+      ctx.fillStyle = timerColor;
+      ctx.fillRect(barX, barY, barWidth * timeRatio, barHeight);
+      
+      // Timer text
+      ctx.fillStyle = "#fff";
+      ctx.font = "16px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(`${timeLeft.toFixed(1)}s`, canvas.width / 2, barY + barHeight + 16);
+    }
+    
+    function animateBackground() {
+      if (!permissionGranted) return;
+      
+      bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+      
+      // Draw space background gradient
+      const bgGradient = bgCtx.createLinearGradient(0, 0, 0, bgCanvas.height);
+      bgGradient.addColorStop(0, "#000022");
+      bgGradient.addColorStop(1, "#000066");
+      bgCtx.fillStyle = bgGradient;
+      bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+      
+      const time = Date.now() / 1000;
+      
+      // Update and draw stars with parallax effect
+      for (let star of stars) {
+        star.y += star.speed;
+        if (star.y > bgCanvas.height) {
+          star.y = 0;
+          star.x = Math.random() * bgCanvas.width;
+        }
+        
+        // Twinkle effect
+        const twinkle = Math.sin(time * 3 + star.x) * 0.3 + 0.7;
+        
+        bgCtx.fillStyle = `rgba(255, 255, 255, ${star.opacity * twinkle})`;
+        bgCtx.beginPath();
+        bgCtx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+        bgCtx.fill();
+      }
+      
+      // Update and draw rockets
+      for (let rocket of rockets) {
+        rocket.x += rocket.speedX;
+        rocket.y += rocket.speedY;
+        
+        // Wrap around the screen
+        if (rocket.x < -rocket.width) rocket.x = bgCanvas.width + rocket.width;
+        if (rocket.x > bgCanvas.width + rocket.width) rocket.x = -rocket.width;
+        if (rocket.y < -rocket.height) rocket.y = bgCanvas.height + rocket.height;
+        if (rocket.y > bgCanvas.height + rocket.height) rocket.y = -rocket.height;
+        
+        // Adjust rotation to match direction
+        const targetRotation = Math.atan2(rocket.speedY, rocket.speedX) + Math.PI/2;
+        rocket.rotation = targetRotation;
+        
+        drawRocket(rocket.x, rocket.y, rocket.width, rocket.height, rocket.rotation);
+      }
+      
+      // Update and draw UFOs
+      for (let ufo of ufos) {
+        ufo.x += ufo.speedX;
+        ufo.y += ufo.speedY + Math.sin(time * ufo.bobSpeed + ufo.bobOffset) * ufo.bobAmount;
+        
+        // Wrap around the screen
+        if (ufo.x < -ufo.radius) ufo.x = bgCanvas.width + ufo.radius;
+        if (ufo.x > bgCanvas.width + ufo.radius) ufo.x = -ufo.radius;
+        if (ufo.y < -ufo.radius) ufo.y = bgCanvas.height + ufo.radius;
+        if (ufo.y > bgCanvas.height + ufo.radius) ufo.y = -ufo.radius;
+        
+        drawUFO(ufo.x, ufo.y, ufo.radius, time);
+      }
+      
+      requestAnimationFrame(animateBackground);
+    }
+
+    function update() {
+      if (!running || gameOver) return;
+
+      // Add some physics - momentum and friction
+      const friction = 0.95;
+      ball.x += ball.vx * 0.05;
+      ball.y += ball.vy * 0.05;
+      ball.vx *= friction;
+      ball.vy *= friction;
+
+      if (!isOnTrack(ball.x, ball.y)) {
+        endGame(false);
+        return;
+      }
+
+      if (isAtEnd(ball.x, ball.y)) {
+        endGame(true);
+        return;
+      }
+
+      timeLeft -= 1 / 60;
+      if (timeLeft <= 0) {
+        endGame(false);
+        return;
+      }
+
+      draw();
+      requestAnimationFrame(update);
+    }
+
+    function isOnTrack(x, y) {
+      // More forgiving on-track detection
+      return path.some(([px, py]) => {
+    return Math.abs(px + 0.5 - x) < 0.5 && Math.abs(py + 0.5 - y) < 0.5;
+  });
+    }
+
+    function isAtEnd(x, y) {
+  const [ex, ey] = path[path.length - 1];
+  return Math.abs(ex + 0.5 - x) < 0.5 && Math.abs(ey + 0.5 - y) < 0.5;
+}
+
+    function endGame(won) {
+      running = false;
+      gameOver = true;
+        // Stop background music
+  document.getElementById("background-music").pause();
+  if (won) {
+    playSound("sound-win");
+    document.getElementById("message").innerHTML =
+      `<span style="color:#0f0">You won!</span> Time: ${(totalTime - timeLeft).toFixed(2)}s<br>
+      <button onclick="saveMaze()">Save Maze</button>
+      <button onclick="location.reload()">Restart</button>`;
+  } else {
+    playSound("sound-game-over");
+    document.getElementById("message").innerHTML =
+      `<div class="card"><span style="color:#ffffff">You fell or ran out of time.</span><br>
+      <button onclick="location.reload()">Try Again</button></div>`;
+  }
+    }
+
+    function saveMaze() {
+  playSound("sound-button-click");
+  localStorage.setItem('savedMaze', JSON.stringify(path));
+  localStorage.setItem('bestTime', (totalTime - timeLeft).toFixed(2));
+  alert("Maze + time saved!");
+}
+
+// Audio control functions
+let audioEnabled = true;
+
+// Play a sound effect
+function playSound(id) {
+  if (!audioEnabled) return;
+  
+  const sound = document.getElementById(id);
+  if (sound) {
+    sound.currentTime = 0; // Reset to start
+    sound.play().catch(error => {
+      console.log("Audio play failed:", error);
+      // Most browsers require user interaction before playing audio
+    });
+  }
+}
+
+// Toggle all audio on/off
+function toggleAudio() {
+  audioEnabled = !audioEnabled;
+  const bgMusic = document.getElementById("background-music");
+  const audioButton = document.getElementById("audio-toggle");
+  
+  if (audioEnabled) {
+    audioButton.textContent = "🔊";
+    if (running) {
+      bgMusic.play().catch(e => console.log("Could not play background music:", e));
+    }
+  } else {
+    audioButton.textContent = "🔇";
+    bgMusic.pause();
+  }
+  
+  // Save preference
+  localStorage.setItem("audioEnabled", audioEnabled);
+}
+
+// Initialize audio settings from localStorage
+function initAudio() {
+  const savedAudioSetting = localStorage.getItem("audioEnabled");
+  if (savedAudioSetting !== null) {
+    audioEnabled = savedAudioSetting === "true";
+    const audioButton = document.getElementById("audio-toggle");
+    audioButton.textContent = audioEnabled ? "🔊" : "🔇";
+  }
+}
+
+// Call this when the page loads
+document.addEventListener("DOMContentLoaded", initAudio);
+  </script>
+</body>
+</html>
