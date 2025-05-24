@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhörningen Theas Äventyr</title>
+    <style>
+        body {
+            background: #202020;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        h1 {
+            color: white;
+            font-size: 1.5rem;
+        }
+        #gameContainer {
+            position: relative;
+        }
+        canvas {
+            border: 2px solid #333;
+        }
+        #restartButton {
+            position: absolute;
+            bottom: 10%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 10px 20px;
+            font-size: 18px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <h1>Enhörningen Theas Äventyr</h1>
+        <canvas id="gameCanvas" width="600" height="600"></canvas>
+        <button id="restartButton">Spela igen!</button>
+    </div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const restartButton = document.getElementById('restartButton');
+
+        const gridSize = 40;
+        const tileCount = canvas.width / gridSize;
+        const spacing = 2; // 2px spacing between squares
+
+        let snake, food, powerUp, dx, dy, score, gameLoopId, slowModeTimer, extraLife;
+        let rainbowPhase = 0;
+
+        const foodEmojis = ['🥦', '🍅', '🥑', '🍆', '🥒', '🥬'];
+        const powerUpTypes = ['🥕', '🌰'];
+        const unicornEmoji = '🦄';
+
+        function initGame() {
+            snake = [{x: 10, y: 10}];
+            generateFood();
+            powerUp = null;
+            dx = 0;
+            dy = 0;
+            score = 0;
+            slowModeTimer = 0;
+            extraLife = false;
+            restartButton.style.display = 'none';
+        }
+
+        function drawGame() {
+            clearCanvas();
+            moveSnake();
+            drawSnake();
+            drawFood();
+            if (powerUp) drawPowerUp();
+            drawScore();
+
+            if (checkCollision()) {
+                if (extraLife) {
+                    extraLife = false;
+                } else {
+                    gameOver();
+                    return;
+                }
+            }
+
+            if (slowModeTimer > 0) {
+                slowModeTimer--;
+                gameLoopId = setTimeout(drawGame, 400);
+            } else {
+                gameLoopId = setTimeout(drawGame, 200);
+            }
+
+            rainbowPhase = (rainbowPhase + 0.01) % 1;
+        }
+
+        function clearCanvas() {
+            const hue = (rainbowPhase * 360).toFixed(0);
+            ctx.fillStyle = `hsl(${hue}, 100%, 90%)`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function moveSnake() {
+            const head = {x: snake[0].x + dx, y: snake[0].y + dy};
+            snake.unshift(head);
+
+            if (head.x === food.x && head.y === food.y) {
+                score += food.value;
+                generateFood();
+                if (Math.random() < 0.2) generatePowerUp();
+            } else {
+                snake.pop();
+            }
+
+            if (powerUp && head.x === powerUp.x && head.y === powerUp.y) {
+                activatePowerUp();
+            }
+        }
+
+        function drawSnake() {
+            snake.forEach((segment, index) => {
+                // Draw grey background with black border
+                ctx.fillStyle = 'rgba(200, 200, 200, 0.8)';
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 1;
+                const x = segment.x * gridSize + spacing;
+                const y = segment.y * gridSize + spacing;
+                const size = gridSize - 2 * spacing;
+                ctx.fillRect(x, y, size, size);
+                ctx.strokeRect(x, y, size, size);
+
+                // Draw unicorn emoji
+                ctx.font = index === 0 ? `${size}px Arial` : `${size * 0.8}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(unicornEmoji, segment.x * gridSize + gridSize / 2, segment.y * gridSize + gridSize / 2);
+            });
+        }
+
+        function drawFood() {
+            ctx.font = `${gridSize}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(food.emoji, (food.x + 0.5) * gridSize, (food.y + 0.5) * gridSize);
+        }
+
+        function drawPowerUp() {
+            ctx.font = `${gridSize}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(powerUp.type, (powerUp.x + 0.5) * gridSize, (powerUp.y + 0.5) * gridSize);
+        }
+
+        function drawScore() {
+            ctx.fillStyle = 'black';
+            ctx.font = '20px Arial';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillText(`Poäng: ${score}`, 10, 10);
+            if (extraLife) {
+                ctx.fillText('ExtraLiv: ❤️', 10, 40);
+            }
+        }
+
+        function generateFood() {
+            const emoji = foodEmojis[Math.floor(Math.random() * foodEmojis.length)];
+            const value = Math.floor(Math.random() * 3) + 1;
+            food = {
+                x: Math.floor(Math.random() * tileCount),
+                y: Math.floor(Math.random() * tileCount),
+                emoji: emoji,
+                value: value
+            };
+        }
+
+        function generatePowerUp() {
+            powerUp = {
+                x: Math.floor(Math.random() * tileCount),
+                y: Math.floor(Math.random() * tileCount),
+                type: powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)]
+            };
+        }
+
+        function activatePowerUp() {
+            if (powerUp.type === '🥕') {
+                slowModeTimer = 100; // 10 seconds
+            } else if (powerUp.type === '🌰') {
+                extraLife = true;
+            }
+            powerUp = null;
+        }
+
+        function checkCollision() {
+            const head = snake[0];
+            return (
+                head.x < 0 || head.x >= tileCount ||
+                head.y < 0 || head.y >= tileCount ||
+                snake.slice(1).some(segment => segment.x === head.x && segment.y === head.y)
+            );
+        }
+
+        function gameOver() {
+            clearTimeout(gameLoopId);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'white';
+            ctx.font = '30px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Spelet slut!', canvas.width / 2, canvas.height / 2 - 40);
+            ctx.font = '60px Arial';
+            ctx.fillText('💩', canvas.width / 2, canvas.height / 2 + 40);
+            restartButton.style.display = 'block';
+        }
+
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case 'ArrowUp':
+                    if (dy === 0) { dx = 0; dy = -1; }
+                    break;
+                case 'ArrowDown':
+                    if (dy === 0) { dx = 0; dy = 1; }
+                    break;
+                case 'ArrowLeft':
+                    if (dx === 0) { dx = -1; dy = 0; }
+                    break;
+                case 'ArrowRight':
+                    if (dx === 0) { dx = 1; dy = 0; }
+                    break;
+            }
+        });
+
+        restartButton.addEventListener('click', () => {
+            initGame();
+            drawGame();
+        });
+
+        initGame();
+        drawGame();
+    </script>
+</body>
+</html>
