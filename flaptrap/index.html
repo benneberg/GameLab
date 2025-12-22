@@ -11,6 +11,7 @@ body{overflow:hidden;background:#0a0a0a;touch-action:none}
 canvas{display:block}
 .neo{border:4px solid #000;box-shadow:8px 8px 0 #000}
 .flash{position:absolute;inset:0;background:white;opacity:0;pointer-events:none;transition:.15s}
+.particle{position:absolute;width:4px;height:4px;border-radius:50%;background:#ff00ff;pointer-events:none;z-index:50}
 </style>
 </head>
 <body class="bg-gradient-to-br from-purple-900 via-blue-900 to-cyan-900">
@@ -30,16 +31,16 @@ canvas{display:block}
 
 <!-- MODE SELECT -->
 <div id="start" class="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-80 z-30">
-  <button id="dailyBtn" class="neo bg-pink-500 px-8 py-4 text-2xl mb-4">DAILY RUN</button>
-  <button id="randomBtn" class="neo bg-cyan-500 px-8 py-4 text-2xl">RANDOM RUN</button>
+  <button id="dailyBtn" class="neo bg-pink-500 px-8 py-4 text-2xl mb-4 font-bold">DAILY RUN</button>
+  <button id="randomBtn" class="neo bg-cyan-500 px-8 py-4 text-2xl font-bold">RANDOM RUN</button>
 </div>
 
 <!-- GAME OVER -->
 <div id="over" class="absolute inset-0 hidden flex-col items-center justify-center bg-black bg-opacity-80 z-30">
-  <div class="text-red-500 text-4xl mb-4">GAME OVER</div>
-  <div id="final" class="text-white text-3xl mb-6"></div>
-  <button id="againBtn" class="neo bg-green-500 px-6 py-3 text-xl mb-3">PLAY AGAIN</button>
-  <button id="switchBtn" class="neo bg-gray-300 px-6 py-2 text-lg">SWITCH MODE</button>
+  <div class="text-red-500 text-4xl mb-4 font-bold">GAME OVER</div>
+  <div id="final" class="text-white text-3xl mb-6 font-bold"></div>
+  <button id="againBtn" class="neo bg-green-500 px-6 py-3 text-xl mb-3 font-bold">PLAY AGAIN</button>
+  <button id="switchBtn" class="neo bg-gray-300 px-6 py-2 text-lg font-bold">SWITCH MODE</button>
 </div>
 
 <!-- BADGE -->
@@ -47,8 +48,8 @@ canvas{display:block}
   <div class="neo bg-fuchsia-500 text-white px-6 py-4 text-center font-black">
     NEW HIGH SCORE<br>
     <span id="badgeScore"></span><br><br>
-    <button id="shareBtn" class="neo bg-black px-3 py-1 mr-2">SHARE</button>
-    <button id="downloadBtn" class="neo bg-black px-3 py-1">DOWNLOAD</button>
+    <button id="shareBtn" class="neo bg-black px-3 py-1 mr-2 font-bold">SHARE</button>
+    <button id="downloadBtn" class="neo bg-black px-3 py-1 font-bold">DOWNLOAD</button>
   </div>
 </div>
 </div>
@@ -92,6 +93,10 @@ const scrollSpeedBase = 3;
 /* ================= PLAYER ================= */
 const p={x:0,y:0,vx:0,vy:0,r:15};
 
+// Player particles for trail effect
+const particles = [];
+const maxParticles = 20;
+
 /* ================= OBSTACLES ================= */
 let obs=[];
 
@@ -104,11 +109,69 @@ const BEAT_WEIGHTS=[
 ];
 
 /* -------- Pattern factories -------- */
-function createSaw(y){return [...Array(3)].map((_,i)=>({type:'saw',x:c.width*0.3+i*120,baseX:c.width*0.3+i*120,y,size:26,rot:0,phase:i*Math.PI/3}))}
-function createOrbit(y){const cx=c.width/2; return [...Array(6)].map((_,i)=>({type:'orbit',cx,cy:y,angle:i*Math.PI/3,radius:80,speed:0.03,size:18}))}
-function createTriangleWall(y){const side=rand()<0.5?60:c.width-60; return [...Array(4)].map((_,i)=>({type:'triangle',x:side,y:y+i*40,size:22,rot:0}))}
-function createSquareGap(y){const gap=Math.floor(rand()*5); return [...Array(5)].flatMap((_,i)=>i===gap?[]:[{type:'square',x:(i+1)*c.width/6,y,size:26,rot:Math.PI/4}])}
-function createPendulum(y){return [...Array(3)].map((_,i)=>({type:'pendulum',ax:(i+1)*c.width/4,ay:y-60,angle:Math.PI/2,vel:0,len:70,size:20}))}
+function createSaw(y){
+  return [...Array(3)].map((_,i)=>({
+    type:'saw',
+    x:c.width*0.3+i*120,
+    baseX:c.width*0.3+i*120,
+    y,
+    size:26,
+    rot:0,
+    phase:i*Math.PI/3,
+    color: '#ff00ff'
+  }))
+}
+
+function createOrbit(y){
+  const cx=c.width/2; 
+  return [...Array(6)].map((_,i)=>({
+    type:'orbit',
+    cx,
+    cy:y,
+    angle:i*Math.PI/3,
+    radius:80,
+    speed:0.03,
+    size:18,
+    color: '#00ffff'
+  }))
+}
+
+function createTriangleWall(y){
+  const side=rand()<0.5?60:c.width-60; 
+  return [...Array(4)].map((_,i)=>({
+    type:'triangle',
+    x:side,
+    y:y+i*40,
+    size:22,
+    rot:0,
+    color: '#ffff00'
+  }))
+}
+
+function createSquareGap(y){
+  const gap=Math.floor(rand()*5); 
+  return [...Array(5)].flatMap((_,i)=>i===gap?[]:[{
+    type:'square',
+    x:(i+1)*c.width/6,
+    y,
+    size:26,
+    rot:Math.PI/4,
+    color: '#00ff00'
+  }])
+}
+
+function createPendulum(y){
+  return [...Array(3)].map((_,i)=>({
+    type:'pendulum',
+    ax:(i+1)*c.width/4,
+    ay:y-60,
+    angle:Math.PI/2,
+    vel:0,
+    len:70,
+    size:20,
+    color: '#ff6600'
+  }))
+}
 
 const PATTERNS={saw:createSaw,orbit:createOrbit,triangle:createTriangleWall,square:createSquareGap,pendulum:createPendulum};
 
@@ -133,6 +196,9 @@ function input(e){
   const x=e.touches?e.touches[0].clientX:e.clientX;
   p.vy=-8*gravity;
   p.vx=x<c.width/2?-5:5;
+  
+  // Add particle effect on jump
+  addParticle(p.x, p.y, p.vx, p.vy);
 }
 c.addEventListener('mousedown',input);
 c.addEventListener('touchstart',input);
@@ -168,6 +234,7 @@ function startGame(mode){
   nextGravity=300+rand()*300;
   obs=[];
   p.x=c.width/2;p.y=c.height*0.7;p.vx=p.vy=0;
+  particles.length = 0;
   start.classList.add('hidden'); over.classList.add('hidden'); badge.classList.add('hidden');
   startAudio();
   running=true;
@@ -185,46 +252,229 @@ function update(){
   scoreEl.textContent=score;
   beatTimer++;
   if(beatTimer>BEAT_INTERVAL){beat++; beatTimer=0; spawnPattern();}
-  p.vy+=0.5*gravity;
-  p.y+=p.vy;
-  p.x+=p.vx;
-  p.vx*=0.85;
+  
+  // Apply gravity
+  p.vy += 0.5 * gravity;
+  p.y += p.vy;
+  p.x += p.vx;
+  p.vx *= 0.85;
+  
+  // Keep player within bounds
   p.x=Math.max(p.r,Math.min(c.width-p.r,p.x));
-  if(p.y<0||p.y>c.height) return endGame();
-  if(score>nextGravity){
-    gravity*=-1;
-    nextGravity+=400+rand()*400;
-    document.getElementById('gravityArrow').textContent=gravity===1?'↑':'↓';
-    updateAudio();
-    flash.style.opacity=1;
-    setTimeout(()=>flash.style.opacity=0,120);
+  
+  // Check for game over (out of bounds)
+  if(p.y < -p.r || p.y > c.height + p.r) {
+    endGame();
+    return;
   }
+  
+  // Check for gravity change
+  if(score > nextGravity){
+    gravity *= -1;
+    nextGravity += 400 + rand() * 400;
+    document.getElementById('gravityArrow').textContent = gravity === 1 ? '↑' : '↓';
+    updateAudio();
+    flash.style.opacity = 1;
+    setTimeout(() => flash.style.opacity = 0, 120);
+  }
+  
+  // Update particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    particles[i].life--;
+    particles[i].x += particles[i].vx;
+    particles[i].y += particles[i].vy;
+    
+    if (particles[i].life <= 0) {
+      particles.splice(i, 1);
+    }
+  }
+  
+  // Update obstacles
   for(let i=obs.length-1;i>=0;i--){
     const o=obs[i];
-    o.y+=scrollSpeedBase;
+    o.y += scrollSpeedBase;
+    
+    // Update obstacle movement based on type
     if(o.type==='saw'){o.rot+=0.12; o.x=o.baseX+Math.sin(score*0.05+o.phase)*80;}
     if(o.type==='orbit'){o.angle+=o.speed; o.x=o.cx+Math.cos(o.angle)*o.radius; o.y=o.cy+Math.sin(o.angle)*o.radius;}
     if(o.type==='triangle') o.rot+=0.1;
     if(o.type==='square') o.rot+=0.05;
-    if(o.type==='pendulum'){o.vel+=-0.01*Math.sin(o.angle); o.angle+=o.vel; o.vel*=0.99; o.x=o.ax+Math.sin(o.angle)*o.len; o.y=o.ay+Math.cos(o.angle)*o.len;}
-    const dx=p.x-o.x,dy=p.y-o.y;
-    if(Math.hypot(dx,dy)<p.r+(o.size||20)) return endGame();
-    if(o.y>c.height+150) obs.splice(i,1);
+    if(o.type==='pendulum'){
+      o.vel += -0.01 * Math.sin(o.angle);
+      o.angle += o.vel;
+      o.vel *= 0.99;
+      o.x = o.ax + Math.sin(o.angle) * o.len;
+      o.y = o.ay + Math.cos(o.angle) * o.len;
+    }
+    
+    // Check collision
+    const dx = p.x - o.x;
+    const dy = p.y - o.y;
+    const distance = Math.hypot(dx, dy);
+    
+    if(distance < p.r + (o.size || 20)) {
+      endGame();
+      return;
+    }
+    
+    // Remove obstacles that are off-screen
+    if(o.y > c.height + 150) {
+      obs.splice(i, 1);
+    }
   }
 }
 
 /* ================= DRAW ================= */
 function draw(){
-  ctx.fillStyle='#080012';
-  ctx.fillRect(0,0,c.width,c.height);
-  obs.forEach(o=>{
-    ctx.save(); ctx.translate(o.x,o.y); ctx.rotate(o.rot||0); ctx.fillStyle='#00ffff';
-    if(o.type==='triangle'){ctx.beginPath(); ctx.moveTo(0,-o.size); ctx.lineTo(-o.size,o.size); ctx.lineTo(o.size,o.size); ctx.fill();}
-    else if(o.type==='square'){ctx.fillRect(-o.size/2,-o.size/2,o.size,o.size);}
-    else{ctx.beginPath(); ctx.arc(0,0,o.size||20,0,Math.PI*2); ctx.fill();}
+  // Clear canvas with gradient background
+  ctx.fillStyle = '#080012';
+  ctx.fillRect(0, 0, c.width, c.height);
+  
+  // Draw obstacles with enhanced graphics
+  obs.forEach(o => {
+    ctx.save();
+    ctx.translate(o.x, o.y);
+    ctx.rotate(o.rot || 0);
+    
+    // Draw obstacle with glow effect
+    ctx.shadowColor = o.color;
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = o.color;
+    
+    if(o.type === 'triangle') {
+      ctx.beginPath();
+      ctx.moveTo(0, -o.size);
+      ctx.lineTo(-o.size, o.size);
+      ctx.lineTo(o.size, o.size);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Add inner circle
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(0, 0, o.size * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    else if(o.type === 'square') {
+      ctx.fillRect(-o.size/2, -o.size/2, o.size, o.size);
+      
+      // Add inner square
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(-o.size/4, -o.size/4, o.size/2, o.size/2);
+    }
+    else if(o.type === 'saw') {
+      ctx.beginPath();
+      ctx.arc(0, 0, o.size, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Add gear teeth
+      ctx.fillStyle = '#000000';
+      for(let i = 0; i < 8; i++) {
+        ctx.save();
+        ctx.rotate(i * Math.PI / 4);
+        ctx.fillRect(o.size * 0.8, -o.size * 0.1, o.size * 0.2, o.size * 0.2);
+        ctx.restore();
+      }
+      
+      // Add center circle
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(0, 0, o.size * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    else if(o.type === 'orbit') {
+      ctx.beginPath();
+      ctx.arc(0, 0, o.size, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Add orbit path
+      ctx.strokeStyle = '#00ffff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, o.radius, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Add center circle
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(0, 0, o.size * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    else if(o.type === 'pendulum') {
+      ctx.beginPath();
+      ctx.arc(0, 0, o.size, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Add pendulum arm
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(Math.sin(o.angle) * o.len * 0.5, Math.cos(o.angle) * o.len * 0.5);
+      ctx.stroke();
+      
+      // Add center circle
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(0, 0, o.size * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
     ctx.restore();
   });
-  ctx.fillStyle='#ff00ff'; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+  
+  // Draw player with enhanced graphics
+  ctx.save();
+  ctx.shadowColor = '#ff00ff';
+  ctx.shadowBlur = 15;
+  
+  // Main player circle
+  ctx.fillStyle = '#ff00ff';
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Inner circle
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, p.r * 0.6, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Center dot
+  ctx.fillStyle = '#000000';
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, p.r * 0.3, 0, Math.PI * 2);
+  ctx.fill();
+  
+  ctx.restore();
+  
+  // Draw particles
+  for (const particle of particles) {
+    ctx.fillStyle = particle.color;
+    ctx.beginPath();
+    ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+/* ================= PARTICLE EFFECTS ================= */
+function addParticle(x, y, vx, vy) {
+  const particle = {
+    x: x,
+    y: y,
+    vx: vx * 0.1 + (Math.random() - 0.5) * 2,
+    vy: vy * 0.1 + (Math.random() - 0.5) * 2,
+    size: 2 + Math.random() * 2,
+    color: '#ff00ff',
+    life: 30
+  };
+  
+  particles.push(particle);
+  
+  // Limit particles
+  if (particles.length > maxParticles) {
+    particles.shift();
+  }
 }
 
 /* ================= END ================= */
