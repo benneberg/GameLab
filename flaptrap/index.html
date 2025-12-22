@@ -3,15 +3,70 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Gravity Shift</title>
+<title>FlapTrap</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{overflow:hidden;background:#0a0a0a;touch-action:none}
-canvas{display:block}
-.neo{border:4px solid #000;box-shadow:8px 8px 0 #000}
-.flash{position:absolute;inset:0;background:white;opacity:0;pointer-events:none;transition:.15s}
-.particle{position:absolute;width:4px;height:4px;border-radius:50%;background:#ff00ff;pointer-events:none;z-index:50}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { overflow: hidden; background: #0a0a0a; touch-action: none; }
+canvas { display: block; }
+.neo {
+  border: 4px solid #000;
+  box-shadow: 8px 8px 0 #000;
+  position: relative;
+}
+.flash {
+  position: absolute;
+  inset: 0;
+  background: white;
+  opacity: 0;
+  pointer-events: none;
+  transition: .15s;
+}
+.particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #ff00ff;
+  pointer-events: none;
+  z-index: 50;
+}
+/* Mirror indicator arrow */
+.mirror-arrow {
+  display: inline-block;
+  transition: transform 0.3s ease;
+}
+/* Game Over styling */
+#over {
+  animation: pulseGlow 2s infinite alternate;
+}
+@keyframes pulseGlow {
+  0% { box-shadow: 0 0 20px rgba(255,0,100,0.4); }
+  100% { box-shadow: 0 0 40px rgba(255,0,100,0.8); }
+}
+/* Badge shimmer */
+#badge .shimmer {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  transform: translateX(-100%);
+  animation: shimmer 2s infinite;
+  pointer-events: none;
+  border-radius: inherit;
+}
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+.trophy::before {
+  content: '🏆';
+  display: inline-block;
+  margin-right: 6px;
+  animation: float 2s ease-in-out infinite;
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
 </style>
 </head>
 <body class="bg-gradient-to-br from-purple-900 via-blue-900 to-cyan-900">
@@ -21,35 +76,48 @@ canvas{display:block}
 <div id="flash" class="flash"></div>
 
 <!-- HUD -->
-<div class="absolute top-4 left-4 right-4 flex justify-between pointer-events-none">
+<div class="absolute top-4 left-4 right-4 flex justify-between pointer-events-none z-20">
   <div class="neo bg-black bg-opacity-40 px-4 py-2">
     <div class="text-yellow-300 text-sm">SCORE</div>
-    <div id="score" class="text-white text-3xl">0</div>
+    <div id="score" class="text-white text-3xl font-bold">0</div>
   </div>
-  <div id="gravityArrow" class="neo bg-black bg-opacity-40 px-4 py-2 text-white text-2xl">↑</div>
+  <div class="flex gap-2">
+    <div id="gravityArrow" class="neo bg-black bg-opacity-40 px-3 py-2 text-white text-xl">↑</div>
+    <div id="mirrorArrow" class="neo bg-black bg-opacity-40 px-3 py-2 text-white text-xl">↔</div>
+  </div>
 </div>
 
 <!-- MODE SELECT -->
 <div id="start" class="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-80 z-30">
-  <button id="dailyBtn" class="neo bg-pink-500 px-8 py-4 text-2xl mb-4 font-bold">DAILY RUN</button>
-  <button id="randomBtn" class="neo bg-cyan-500 px-8 py-4 text-2xl font-bold">RANDOM RUN</button>
+  <h1 class="text-5xl font-bold text-cyan-400 mb-8 tracking-wide">GRAVITY SHIFT</h1>
+  <button id="dailyBtn" class="neo bg-pink-500 px-8 py-4 text-2xl mb-4 font-bold tracking-wider">DAILY RUN</button>
+  <button id="randomBtn" class="neo bg-cyan-500 px-8 py-4 text-2xl font-bold tracking-wider">RANDOM RUN</button>
 </div>
 
 <!-- GAME OVER -->
-<div id="over" class="absolute inset-0 hidden flex-col items-center justify-center bg-black bg-opacity-80 z-30">
-  <div class="text-red-500 text-4xl mb-4 font-bold">GAME OVER</div>
-  <div id="final" class="text-white text-3xl mb-6 font-bold"></div>
-  <button id="againBtn" class="neo bg-green-500 px-6 py-3 text-xl mb-3 font-bold">PLAY AGAIN</button>
-  <button id="switchBtn" class="neo bg-gray-300 px-6 py-2 text-lg font-bold">SWITCH MODE</button>
+<div id="over" class="absolute inset-0 hidden flex-col items-center justify-center bg-black bg-opacity-80 z-30 rounded-xl p-8">
+  <div class="text-red-400 text-5xl font-extrabold tracking-wider mb-2">GAME OVER</div>
+  <div class="text-white text-2xl mt-2 mb-1">FINAL SCORE</div>
+  <div id="final" class="text-cyan-300 text-5xl font-bold mb-3">0</div>
+  <div id="highScoreLabel" class="text-yellow-400 text-xl font-semibold hidden">NEW HIGH SCORE!</div>
+  <div class="mt-6 flex flex-col items-center gap-3 w-full max-w-xs">
+    <button id="againBtn" class="neo bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-4 text-xl font-bold w-full">PLAY AGAIN</button>
+    <button id="switchBtn" class="neo bg-gray-700 text-white px-6 py-3 text-lg font-semibold w-full">SWITCH MODE</button>
+  </div>
 </div>
 
 <!-- BADGE -->
-<div id="badge" class="absolute bottom-4 left-1/2 -translate-x-1/2 hidden z-40">
-  <div class="neo bg-fuchsia-500 text-white px-6 py-4 text-center font-black">
-    NEW HIGH SCORE<br>
-    <span id="badgeScore"></span><br><br>
-    <button id="shareBtn" class="neo bg-black px-3 py-1 mr-2 font-bold">SHARE</button>
-    <button id="downloadBtn" class="neo bg-black px-3 py-1 font-bold">DOWNLOAD</button>
+<div id="badge" class="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 pointer-events-auto">
+  <div class="neo relative bg-gradient-to-r from-amber-600 via-amber-500 to-yellow-400 text-white px-6 py-4 text-center font-black rounded-lg overflow-hidden">
+    <div class="shimmer"></div>
+    <div class="relative z-10">
+      <div class="trophy text-2xl font-bold mb-1">NEW HIGH SCORE</div>
+      <div id="badgeScore" class="text-4xl font-extrabold mb-4 tracking-tight">0</div>
+      <div class="flex justify-center gap-3">
+        <button id="shareBtn" class="neo bg-black text-white px-4 py-2 text-lg font-bold rounded">SHARE</button>
+        <button id="downloadBtn" class="neo bg-black text-white px-4 py-2 text-lg font-bold rounded">DOWNLOAD</button>
+      </div>
+    </div>
   </div>
 </div>
 </div>
@@ -84,23 +152,22 @@ let running=false;
 let currentMode='random';
 let score=0,high=0;
 let gravity=1;
+let mirror=1; // 1 = normal, -1 = mirrored (left/right flipped)
 let nextGravity=0;
+let nextMirror=0;
 let beat=0;
 let beatTimer=0;
-const BEAT_INTERVAL=60; // frames
-const scrollSpeedBase = 3;
+const BEAT_INTERVAL=60;
+const scrollSpeedBase = 1.5; // ⬅️ HALVED from 3 → 1.5
 
 /* ================= PLAYER ================= */
 const p={x:0,y:0,vx:0,vy:0,r:15};
-
-// Player particles for trail effect
 const particles = [];
 const maxParticles = 20;
 
 /* ================= OBSTACLES ================= */
 let obs=[];
 
-/* -------- Beat-specific weights -------- */
 const BEAT_WEIGHTS=[
   {saw:3,orbit:1,triangle:0,square:1,pendulum:0},
   {saw:2,orbit:2,triangle:1,square:1,pendulum:0},
@@ -108,7 +175,6 @@ const BEAT_WEIGHTS=[
   {saw:1,orbit:1,triangle:2,square:2,pendulum:2}
 ];
 
-/* -------- Pattern factories -------- */
 function createSaw(y){
   return [...Array(3)].map((_,i)=>({
     type:'saw',
@@ -121,7 +187,6 @@ function createSaw(y){
     color: '#ff00ff'
   }))
 }
-
 function createOrbit(y){
   const cx=c.width/2; 
   return [...Array(6)].map((_,i)=>({
@@ -135,7 +200,6 @@ function createOrbit(y){
     color: '#00ffff'
   }))
 }
-
 function createTriangleWall(y){
   const side=rand()<0.5?60:c.width-60; 
   return [...Array(4)].map((_,i)=>({
@@ -147,7 +211,6 @@ function createTriangleWall(y){
     color: '#ffff00'
   }))
 }
-
 function createSquareGap(y){
   const gap=Math.floor(rand()*5); 
   return [...Array(5)].flatMap((_,i)=>i===gap?[]:[{
@@ -159,7 +222,6 @@ function createSquareGap(y){
     color: '#00ff00'
   }])
 }
-
 function createPendulum(y){
   return [...Array(3)].map((_,i)=>({
     type:'pendulum',
@@ -175,7 +237,6 @@ function createPendulum(y){
 
 const PATTERNS={saw:createSaw,orbit:createOrbit,triangle:createTriangleWall,square:createSquareGap,pendulum:createPendulum};
 
-/* -------- Weighted selection -------- */
 function weightedPattern(){
   const w = BEAT_WEIGHTS[beat%BEAT_WEIGHTS.length];
   const bag = [];
@@ -195,19 +256,19 @@ function input(e){
   if(!running)return;
   const x=e.touches?e.touches[0].clientX:e.clientX;
   p.vy=-8*gravity;
-  p.vx=x<c.width/2?-5:5;
-  
-  // Add particle effect on jump
+  // Apply mirror: flip left/right direction
+  p.vx = (x < c.width/2 ? -5 : 5) * mirror;
   addParticle(p.x, p.y, p.vx, p.vy);
 }
 c.addEventListener('mousedown',input);
 c.addEventListener('touchstart',input);
 
-/* ================= START / UI ================= */
+/* ================= UI ELEMENTS ================= */
 const start=document.getElementById('start');
 const over=document.getElementById('over');
 const scoreEl=document.getElementById('score');
 const final=document.getElementById('final');
+const highScoreLabel=document.getElementById('highScoreLabel');
 const dailyBtn=document.getElementById('dailyBtn');
 const randomBtn=document.getElementById('randomBtn');
 const againBtn=document.getElementById('againBtn');
@@ -217,6 +278,8 @@ const badge=document.getElementById('badge');
 const badgeScore=document.getElementById('badgeScore');
 const shareBtn=document.getElementById('shareBtn');
 const downloadBtn=document.getElementById('downloadBtn');
+const gravityArrow=document.getElementById('gravityArrow');
+const mirrorArrow=document.getElementById('mirrorArrow');
 
 dailyBtn.onclick=()=>startGame('daily');
 randomBtn.onclick=()=>startGame('random');
@@ -230,15 +293,19 @@ function startGame(mode){
   currentMode=mode;
   rand=RNG(mode==='daily'?Number(new Date().toISOString().slice(0,10).replace(/-/g,'')):Date.now());
   high=Number(localStorage.getItem('high_'+mode)||0);
-  score=0;gravity=1;beat=0;beatTimer=0;
+  score=0; gravity=1; mirror=1; beat=0; beatTimer=0;
   nextGravity=300+rand()*300;
+  nextMirror=600+rand()*400; // mirror triggers later & less frequently
   obs=[];
   p.x=c.width/2;p.y=c.height*0.7;p.vx=p.vy=0;
   particles.length = 0;
   start.classList.add('hidden'); over.classList.add('hidden'); badge.classList.add('hidden');
+  highScoreLabel.classList.add('hidden');
+  gravityArrow.textContent = '↑';
+  mirrorArrow.textContent = '↔';
+  mirrorArrow.style.transform = 'scaleX(1)';
   startAudio();
   running=true;
-  // spawn initial obstacles immediately
   for(let i=0;i<3;i++) spawnPattern();
   loop();
 }
@@ -253,48 +320,49 @@ function update(){
   beatTimer++;
   if(beatTimer>BEAT_INTERVAL){beat++; beatTimer=0; spawnPattern();}
   
-  // Apply gravity
+  // Physics
   p.vy += 0.5 * gravity;
   p.y += p.vy;
   p.x += p.vx;
   p.vx *= 0.85;
-  
-  // Keep player within bounds
   p.x=Math.max(p.r,Math.min(c.width-p.r,p.x));
   
-  // Check for game over (out of bounds)
-  if(p.y < -p.r || p.y > c.height + p.r) {
-    endGame();
-    return;
-  }
+  // Bounds check
+  if(p.y < -p.r || p.y > c.height + p.r) return endGame();
   
-  // Check for gravity change
+  // Gravity flip
   if(score > nextGravity){
     gravity *= -1;
     nextGravity += 400 + rand() * 400;
-    document.getElementById('gravityArrow').textContent = gravity === 1 ? '↑' : '↓';
+    gravityArrow.textContent = gravity === 1 ? '↑' : '↓';
     updateAudio();
     flash.style.opacity = 1;
     setTimeout(() => flash.style.opacity = 0, 120);
   }
   
-  // Update particles
-  for (let i = particles.length - 1; i >= 0; i--) {
+  // Mirror flip
+  if(score > nextMirror){
+    mirror *= -1;
+    nextMirror += 500 + rand() * 500;
+    mirrorArrow.textContent = '↔';
+    mirrorArrow.style.transform = mirror === 1 ? 'scaleX(1)' : 'scaleX(-1)';
+    flash.style.opacity = 1;
+    setTimeout(() => flash.style.opacity = 0, 120);
+  }
+  
+  // Particles
+  for (let i=particles.length-1; i>=0; i--) {
     particles[i].life--;
     particles[i].x += particles[i].vx;
     particles[i].y += particles[i].vy;
-    
-    if (particles[i].life <= 0) {
-      particles.splice(i, 1);
-    }
+    if (particles[i].life <= 0) particles.splice(i, 1);
   }
   
-  // Update obstacles
+  // Obstacles
   for(let i=obs.length-1;i>=0;i--){
     const o=obs[i];
     o.y += scrollSpeedBase;
     
-    // Update obstacle movement based on type
     if(o.type==='saw'){o.rot+=0.12; o.x=o.baseX+Math.sin(score*0.05+o.phase)*80;}
     if(o.type==='orbit'){o.angle+=o.speed; o.x=o.cx+Math.cos(o.angle)*o.radius; o.y=o.cy+Math.sin(o.angle)*o.radius;}
     if(o.type==='triangle') o.rot+=0.1;
@@ -307,36 +375,23 @@ function update(){
       o.y = o.ay + Math.cos(o.angle) * o.len;
     }
     
-    // Check collision
-    const dx = p.x - o.x;
-    const dy = p.y - o.y;
-    const distance = Math.hypot(dx, dy);
+    const dx = p.x - o.x, dy = p.y - o.y;
+    if(Math.hypot(dx,dy) < p.r + (o.size||20)) return endGame();
     
-    if(distance < p.r + (o.size || 20)) {
-      endGame();
-      return;
-    }
-    
-    // Remove obstacles that are off-screen
-    if(o.y > c.height + 150) {
-      obs.splice(i, 1);
-    }
+    if(o.y > c.height + 150) obs.splice(i, 1);
   }
 }
 
 /* ================= DRAW ================= */
 function draw(){
-  // Clear canvas with gradient background
   ctx.fillStyle = '#080012';
   ctx.fillRect(0, 0, c.width, c.height);
   
-  // Draw obstacles with enhanced graphics
+  // Obstacles
   obs.forEach(o => {
     ctx.save();
     ctx.translate(o.x, o.y);
     ctx.rotate(o.rot || 0);
-    
-    // Draw obstacle with glow effect
     ctx.shadowColor = o.color;
     ctx.shadowBlur = 10;
     ctx.fillStyle = o.color;
@@ -348,8 +403,6 @@ function draw(){
       ctx.lineTo(o.size, o.size);
       ctx.closePath();
       ctx.fill();
-      
-      // Add inner circle
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
       ctx.arc(0, 0, o.size * 0.3, 0, Math.PI * 2);
@@ -357,8 +410,6 @@ function draw(){
     }
     else if(o.type === 'square') {
       ctx.fillRect(-o.size/2, -o.size/2, o.size, o.size);
-      
-      // Add inner square
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(-o.size/4, -o.size/4, o.size/2, o.size/2);
     }
@@ -366,8 +417,6 @@ function draw(){
       ctx.beginPath();
       ctx.arc(0, 0, o.size, 0, Math.PI * 2);
       ctx.fill();
-      
-      // Add gear teeth
       ctx.fillStyle = '#000000';
       for(let i = 0; i < 8; i++) {
         ctx.save();
@@ -375,8 +424,6 @@ function draw(){
         ctx.fillRect(o.size * 0.8, -o.size * 0.1, o.size * 0.2, o.size * 0.2);
         ctx.restore();
       }
-      
-      // Add center circle
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
       ctx.arc(0, 0, o.size * 0.3, 0, Math.PI * 2);
@@ -386,15 +433,11 @@ function draw(){
       ctx.beginPath();
       ctx.arc(0, 0, o.size, 0, Math.PI * 2);
       ctx.fill();
-      
-      // Add orbit path
       ctx.strokeStyle = '#00ffff';
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(0, 0, o.radius, 0, Math.PI * 2);
       ctx.stroke();
-      
-      // Add center circle
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
       ctx.arc(0, 0, o.size * 0.3, 0, Math.PI * 2);
@@ -404,104 +447,101 @@ function draw(){
       ctx.beginPath();
       ctx.arc(0, 0, o.size, 0, Math.PI * 2);
       ctx.fill();
-      
-      // Add pendulum arm
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(0, 0);
       ctx.lineTo(Math.sin(o.angle) * o.len * 0.5, Math.cos(o.angle) * o.len * 0.5);
       ctx.stroke();
-      
-      // Add center circle
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
       ctx.arc(0, 0, o.size * 0.3, 0, Math.PI * 2);
       ctx.fill();
     }
-    
     ctx.restore();
   });
   
-  // Draw player with enhanced graphics
+  // Player
   ctx.save();
   ctx.shadowColor = '#ff00ff';
   ctx.shadowBlur = 15;
-  
-  // Main player circle
   ctx.fillStyle = '#ff00ff';
   ctx.beginPath();
   ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
   ctx.fill();
-  
-  // Inner circle
   ctx.fillStyle = '#ffffff';
   ctx.beginPath();
   ctx.arc(p.x, p.y, p.r * 0.6, 0, Math.PI * 2);
   ctx.fill();
-  
-  // Center dot
   ctx.fillStyle = '#000000';
   ctx.beginPath();
   ctx.arc(p.x, p.y, p.r * 0.3, 0, Math.PI * 2);
   ctx.fill();
-  
   ctx.restore();
   
-  // Draw particles
-  for (const particle of particles) {
-    ctx.fillStyle = particle.color;
+  // Particles
+  for (const part of particles) {
+    ctx.fillStyle = part.color;
     ctx.beginPath();
-    ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+    ctx.arc(part.x, part.y, part.size, 0, Math.PI * 2);
     ctx.fill();
   }
 }
 
 /* ================= PARTICLE EFFECTS ================= */
 function addParticle(x, y, vx, vy) {
-  const particle = {
-    x: x,
-    y: y,
+  particles.push({
+    x, y,
     vx: vx * 0.1 + (Math.random() - 0.5) * 2,
     vy: vy * 0.1 + (Math.random() - 0.5) * 2,
     size: 2 + Math.random() * 2,
     color: '#ff00ff',
     life: 30
-  };
-  
-  particles.push(particle);
-  
-  // Limit particles
-  if (particles.length > maxParticles) {
-    particles.shift();
-  }
+  });
+  if (particles.length > maxParticles) particles.shift();
 }
 
 /* ================= END ================= */
 function endGame(){
   running=false;
   stopAudio();
-  final.textContent=score;
+  final.textContent = score;
+  highScoreLabel.classList.toggle('hidden', score <= high);
   over.classList.remove('hidden');
-  if(score>high){
-    localStorage.setItem('high_'+currentMode,score);
-    badgeScore.textContent=score; badge.classList.remove('hidden');
+  
+  if(score > high){
+    localStorage.setItem('high_'+currentMode, score);
+    badgeScore.textContent = score;
+    badge.classList.remove('hidden');
   }
 }
 
 /* ================= SHARE / DOWNLOAD ================= */
 shareBtn.onclick=()=>{
-  const t=`I scored ${score} in Gravity Shift (${currentMode})`;
-  navigator.share?navigator.share({text:t}):navigator.clipboard.writeText(t);
+  const t=`I scored ${score} in Gravity Shift (${currentMode})! ${score > high ? '🔥 NEW HIGH SCORE!' : ''}`;
+  if (navigator.share) {
+    navigator.share({text:t, title: 'Gravity Shift'});
+  } else {
+    navigator.clipboard.writeText(t).then(() => {
+      flash.style.opacity = 1;
+      setTimeout(() => flash.style.opacity = 0, 200);
+    });
+  }
 };
 downloadBtn.onclick=()=>{
   const b=document.createElement('canvas'); b.width=400; b.height=200;
   const g=b.getContext('2d');
-  g.fillStyle='#ff00ff'; g.fillRect(0,0,400,200);
-  g.fillStyle='white'; g.font='bold 28px sans-serif';
-  g.fillText('HIGH SCORE',90,90);
-  g.fillText(score,170,130);
-  const a=document.createElement('a'); a.href=b.toDataURL(); a.download='gravity-shift.png'; a.click();
+  const grad = g.createLinearGradient(0,0,400,0);
+  grad.addColorStop(0, '#fbbf24'); grad.addColorStop(1, '#ef4444');
+  g.fillStyle = grad;
+  g.fillRect(0,0,400,200);
+  g.fillStyle = '#fff';
+  g.font = 'bold 28px sans-serif';
+  g.textAlign = 'center';
+  g.fillText('🏆 HIGH SCORE', 200, 90);
+  g.font = 'bold 40px sans-serif';
+  g.fillText(score, 200, 140);
+  const a=document.createElement('a'); a.href=b.toDataURL(); a.download='gravity-shift-highscore.png'; a.click();
 };
 </script>
 </body>
