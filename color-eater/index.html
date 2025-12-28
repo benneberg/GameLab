@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Color Eater</title>
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+
+  <style>
+    :root {
+      --bg: #ffffff;
+      --text: #000000;
+      --accent: #ff2c9f;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-user-select: none;
+      user-select: none;
+      touch-action: none;
+      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ---------------- HUD ---------------- */
+
+    #hud {
+      padding: 8px 10px;
+      border-bottom: 2px solid #000;
+      background: #fff;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      box-shadow: 0 4px 0 #000;
+      z-index: 2;
+    }
+
+    .hud-block {
+      border: 2px solid #000;
+      border-radius: 999px;
+      padding: 4px 10px 5px;
+      background: #fff;
+      box-shadow: 2px 3px 0 #000;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.11em;
+      white-space: nowrap;
+    }
+
+    .hud-title {
+      font-size: 10px;
+      letter-spacing: 0.18em;
+    }
+
+    .hud-label {
+      opacity: 0.7;
+    }
+
+    .hud-value {
+      font-weight: 900;
+      font-size: 12px;
+    }
+
+    #title {
+      font-weight: 900;
+    }
+
+    .hud-target {
+      flex: 1 1 140px;
+    }
+
+    #target-color-swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      border: 2px solid #000;
+      background: #fff;
+    }
+
+    #target-color-name {
+      font-weight: 800;
+    }
+
+    #target-timer {
+      margin-left: auto;
+      min-width: 48px;
+      text-align: right;
+    }
+
+    #target-status {
+      margin-left: 4px;
+      font-weight: 900;
+      color: var(--accent);
+    }
+
+    #target-block {
+      transition: opacity 0.2s ease;
+    }
+
+    @media (max-width: 420px) {
+      #title-block {
+        display: none;
+      }
+    }
+
+    /* ---------------- Game area ---------------- */
+
+    #game-container {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 300px;
+      background: #fff;
+    }
+
+    #game {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: transparent;
+    }
+
+    /* Drag hint */
+
+    #drag-hint {
+      position: absolute;
+      left: 50%;
+      bottom: 40px;
+      transform: translateX(-50%);
+      text-align: center;
+      pointer-events: none;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: #777;
+      z-index: 1;
+    }
+
+    #drag-circle {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 2px dashed #bbb;
+      margin: 0 auto 6px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* ---------------- Overlay (menu + game over) ---------------- */
+
+    #overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    #overlay-inner {
+      max-width: 340px;
+      width: 82%;
+      background: #fff;
+      border: 3px solid #000;
+      box-shadow: 0 8px 0 #000;
+      border-radius: 22px;
+      padding: 20px 18px 18px;
+      text-align: center;
+      pointer-events: auto;
+    }
+
+    #overlay-title {
+      margin: 0 0 8px 0;
+      font-size: 22px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+    }
+
+    #overlay-message {
+      margin: 0 0 6px 0;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    #overlay-sub {
+      margin: 0 0 12px 0;
+      font-size: 11px;
+      line-height: 1.4;
+      opacity: 0.75;
+    }
+
+    #overlay-stats {
+      font-size: 11px;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+
+    #overlay-stats b {
+      font-size: 14px;
+      color: var(--accent);
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 7px 16px;
+      border-radius: 999px;
+      border: 2px solid #000;
+      background: #fff;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      cursor: pointer;
+      box-shadow: 0 4px 0 #000;
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+      box-shadow: 0 3px 0 #000;
+    }
+
+    @media (min-width: 700px) {
+      #overlay-inner {
+        max-width: 380px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- HUD -->
+  <div id="hud">
+    <div class="hud-block hud-title" id="title-block">
+      <span id="title">COLOR EATER</span>
+    </div>
+    <div class="hud-block">
+      <span class="hud-label">Score</span>
+      <span class="hud-value" id="score">0</span>
+    </div>
+    <div class="hud-block">
+      <span class="hud-label">Rnd</span>
+      <span class="hud-value" id="round">0</span>
+    </div>
+    <div class="hud-block">
+      <span class="hud-label">Best</span>
+      <span class="hud-value" id="best">0</span>
+    </div>
+    <div class="hud-block hud-target" id="target-block">
+      <span class="hud-label">Target</span>
+      <span id="target-color-swatch"></span>
+      <span id="target-color-name">---</span>
+      <span id="target-timer"></span>
+      <span id="target-status"></span>
+    </div>
+  </div>
+
+  <!-- Game -->
+  <div id="game-container">
+    <canvas id="game"></canvas>
+
+    <div id="drag-hint">
+      <div id="drag-circle"></div>
+      <div id="drag-text">Drag to move</div>
+    </div>
+
+    <!-- Menu / Game Over overlay -->
+    <div id="overlay">
+      <div id="overlay-inner">
+        <h1 id="overlay-title">Color Eater</h1>
+        <p id="overlay-message"></p>
+        <p id="overlay-sub"></p>
+        <div id="overlay-stats"></div>
+        <div id="overlay-button" class="btn">Tap to Play</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ------------------------------------------------------------
+    // Configuration (easy, controlled growth)
+    // ------------------------------------------------------------
+    const BALL_COLORS = [
+      { name: 'Red',    hex: '#ff4b4b' },
+      { name: 'Blue',   hex: '#4287ff' },
+      { name: 'Green',  hex: '#15b36d' },
+      { name: 'Yellow', hex: '#ffcc00' },
+      { name: 'Purple', hex: '#b344ff' },
+      { name: 'Orange', hex: '#ff7a1a' }
+    ];
+
+    const PLAYER_START_RADIUS = 18;
+    const PLAYER_BASE_SPEED   = 150; // px/s
+
+    // Few, tiny, slow enemies in first round
+    const AI_COUNT            = 9;
+    const AI_BASE_MIN_RADIUS  = 5;
+    const AI_BASE_MAX_RADIUS  = 12;
+    const AI_BASE_SPEED_MIN   = 16;
+    const AI_BASE_SPEED_MAX   = 42;
+
+    // Growth control
+    const PLAYER_EAT_COOLDOWN  = 2.0;  // seconds; player can eat at most once per this time
+    const PLAYER_GROWTH_FACTOR = 0.7;  // how much of eaten area is added to player
+    const AI_GROWTH_FACTOR     = 0.55; // AI grow even slower
+    const MAX_BALL_RADIUS      = 60;   // hard cap so nothing gets absurdly big
+
+    // Safety window at start
+    const SPAWN_GRACE_DURATION = 3.0; // seconds
+
+    // Color challenge timing
+    const CHALLENGE_INTERVAL      = 40;  // seconds between challenges after first
+    const CHALLENGE_MIN_DURATION  = 7;
+    const CHALLENGE_MAX_DURATION  = 11;
+    const FIRST_CHALLENGE_DELAY   = 18;  // wait before first challenge
+
+    const SIZE_EAT_THRESHOLD = 1.1; // must be this times bigger to eat
+
+    // ------------------------------------------------------------
+    // State
+    // ------------------------------------------------------------
+    let canvas, ctx;
+    let viewWidth = 0;
+    let viewHeight = 0;
+
+    let balls = [];
+    let player = null;
+    let state = 'menu'; // 'menu' | 'playing' | 'gameover'
+
+    let lastTime = 0;
+    let elapsedTime = 0;
+
+    let roundsSurvived = 0;
+    let currentChallenge = null; // {colorIndex, endTime}
+    let nextChallengeTime = Infinity;
+    let spawnGraceUntil = 0;
+
+    let activePointerId = null;
+    let bestScore = 0;
+    let playerLastEatTime = -Infinity;
+
+    // HUD / overlay elements
+    let scoreEl, roundEl, bestEl;
+    let targetBlockEl, targetSwatchEl, targetNameEl, targetTimerEl, targetStatusEl;
+    let overlayEl, overlayTitleEl, overlayMessageEl, overlaySubEl, overlayStatsEl, overlayButtonEl;
+    let dragHintEl;
+
+    // ------------------------------------------------------------
+    // Initialization
+    // ------------------------------------------------------------
+    window.addEventListener('load', () => {
+      canvas = document.getElementById('game');
+      ctx = canvas.getContext('2d');
+
+      scoreEl = document.getElementById('score');
+      roundEl = document.getElementById('round');
+      bestEl = document.getElementById('best');
+      targetBlockEl = document.getElementById('target-block');
+      targetSwatchEl = document.getElementById('target-color-swatch');
+      targetNameEl = document.getElementById('target-color-name');
+      targetTimerEl = document.getElementById('target-timer');
+      targetStatusEl = document.getElementById('target-status');
+
+      overlayEl = document.getElementById('overlay');
+      overlayTitleEl = document.getElementById('overlay-title');
+      overlayMessageEl = document.getElementById('overlay-message');
+      overlaySubEl = document.getElementById('overlay-sub');
+      overlayStatsEl = document.getElementById('overlay-stats');
+      overlayButtonEl = document.getElementById('overlay-button');
+
+      dragHintEl = document.getElementById('drag-hint');
+
+      // Load best score
+      try {
+        const stored = localStorage.getItem('color_eater_best');
+        if (stored) bestScore = parseInt(stored, 10) || 0;
+      } catch (e) {
+        bestScore = 0;
+      }
+      bestEl.textContent = bestScore;
+
+      setupCanvasSize();
+      window.addEventListener('resize', setupCanvasSize);
+
+      canvas.addEventListener('pointerdown', handlePointerDown, { passive: false });
+      canvas.addEventListener('pointermove', handlePointerMove, { passive: false });
+      window.addEventListener('pointerup', handlePointerUp);
+      window.addEventListener('pointercancel', handlePointerUp);
+      window.addEventListener('pointerleave', handlePointerUp);
+
+      overlayButtonEl.addEventListener('click', () => {
+        if (state !== 'playing') startGame();
+      });
+
+      showIntroOverlay();
+
+      lastTime = performance.now();
+      requestAnimationFrame(gameLoop);
+    });
+
+    // ------------------------------------------------------------
+    // Canvas & resizing
+    // ------------------------------------------------------------
+    function setupCanvasSize() {
+      const oldWidth = viewWidth || window.innerWidth;
+      const oldHeight = viewHeight || (window.innerHeight - hudHeight());
+
+      viewWidth = window.innerWidth;
+      viewHeight = Math.max(260, window.innerHeight - hudHeight());
+
+      const dpr = window.devicePixelRatio || 1;
+      canvas.style.width = viewWidth + 'px';
+      canvas.style.height = viewHeight + 'px';
+      canvas.width = viewWidth * dpr;
+      canvas.height = viewHeight * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      // Soft rescale on resize
+      if (balls.length > 0 && (viewWidth !== oldWidth || viewHeight !== oldHeight)) {
+        const sx = viewWidth / oldWidth;
+        const sy = viewHeight / oldHeight;
+        const s = (sx + sy) * 0.5;
+        for (const b of balls) {
+          b.x *= sx;
+          b.y *= sy;
+          b.radius *= s;
+        }
+      }
+    }
+
+    function hudHeight() {
+      const hud = document.getElementById('hud');
+      return hud ? hud.getBoundingClientRect().height : 0;
+    }
+
+    // ------------------------------------------------------------
+    // Overlays & game start / end
+    // ------------------------------------------------------------
+    function showIntroOverlay() {
+      overlayTitleEl.textContent = 'Color Eater';
+      overlayMessageEl.textContent =
+        'Drag to steer. Eat smaller balls to grow. Avoid bigger ones.';
+      overlaySubEl.textContent =
+        'First round is calm: only tiny, slow balls. You can’t eat balls that share your color, ' +
+        'and there’s a short cooldown between each bite, so growth stays smooth.';
+      overlayStatsEl.textContent = '';
+      overlayButtonEl.textContent = 'Tap to Play';
+      overlayEl.classList.remove('hidden');
+    }
+
+    function showGameOverOverlay(reason, finalScore) {
+      overlayTitleEl.textContent = 'Game Over';
+
+      if (reason === 'eaten') {
+        overlayMessageEl.textContent = 'You were eaten by a bigger ball.';
+      } else if (reason === 'color_mismatch') {
+        overlayMessageEl.textContent = 'Timer ended, but your color was wrong.';
+      } else {
+        overlayMessageEl.textContent = 'Run ended.';
+      }
+
+      overlaySubEl.textContent =
+        'Score is based on your size, how long you survived, and how many color rounds you cleared.';
+
+      overlayStatsEl.innerHTML =
+        'Score: <b>' + finalScore.toLocaleString() + '</b><br>' +
+        'Rounds survived: <b>' + roundsSurvived + '</b>';
+
+      overlayButtonEl.textContent = 'Play Again';
+      overlayEl.classList.remove('hidden');
+    }
+
+    function startGame() {
+      state = 'playing';
+      overlayEl.classList.add('hidden');
+
+      balls = [];
+      player = null;
+      elapsedTime = 0;
+      roundsSurvived = 0;
+      currentChallenge = null;
+      nextChallengeTime = FIRST_CHALLENGE_DELAY;
+      spawnGraceUntil = SPAWN_GRACE_DURATION;
+      playerLastEatTime = -Infinity;
+
+      if (dragHintEl) dragHintEl.classList.remove('hidden');
+
+      createPlayer();
+      createAIBalls();
+
+      lastTime = performance.now();
+      updateHUD();
+    }
+
+    function gameOver(reason) {
+      if (state !== 'playing') return;
+      state = 'gameover';
+
+      const finalScore = Math.floor(calculateScore());
+      if (finalScore > bestScore) {
+        bestScore = finalScore;
+        bestEl.textContent = bestScore;
+        try {
+          localStorage.setItem('color_eater_best', String(bestScore));
+        } catch (e) {}
+      }
+
+      showGameOverOverlay(reason, finalScore);
+    }
+
+    // ------------------------------------------------------------
+    // Difficulty helpers
+    // ------------------------------------------------------------
+    function getDifficultyFactor() {
+      // Starts at 1.0 and grows gently each cleared round
+      return 1 + roundsSurvived * 0.45;
+    }
+
+    function randomAISpeed() {
+      const diff = getDifficultyFactor();
+      const min = AI_BASE_SPEED_MIN * (0.9 + diff * 0.1);
+      const max = AI_BASE_SPEED_MAX * (0.85 + diff * 0.17);
+      return randRange(min, max);
+    }
+
+    // ------------------------------------------------------------
+    // Entities
+    // ------------------------------------------------------------
+    function createPlayer() {
+      const colorIndex = randInt(0, BALL_COLORS.length - 1);
+      player = {
+        isPlayer: true,
+        x: viewWidth / 2,
+        y: viewHeight / 2,
+        radius: PLAYER_START_RADIUS,
+        headingX: 1,
+        headingY: 0,
+        colorIndex
+      };
+      balls.push(player);
+    }
+
+    function createAIBall() {
+      const diff = getDifficultyFactor();
+
+      const minR = clamp(AI_BASE_MIN_RADIUS * diff, 4, 24);
+      const maxR = clamp(AI_BASE_MAX_RADIUS * (0.9 + diff * 0.6), 8, 40);
+      const radius = randRange(minR, maxR);
+      const colorIndex = randInt(0, BALL_COLORS.length - 1);
+
+      let x, y;
+      let attempts = 0;
+      let distFromPlayer = Infinity;
+
+      do {
+        x = randRange(radius + 6, viewWidth - radius - 6);
+        y = randRange(radius + 6, viewHeight - radius - 6);
+        attempts++;
+
+        if (player) {
+          const dx = x - player.x;
+          const dy = y - player.y;
+          distFromPlayer = Math.hypot(dx, dy);
+        }
+      } while (
+        attempts < 40 &&
+        (
+          collidesWithAny(x, y, radius + 4) ||
+          (player && distFromPlayer < radius + player.radius * 4)
+        )
+      );
+
+      const speed = randomAISpeed();
+      const angle = Math.random() * Math.PI * 2;
+      const vx = Math.cos(angle) * speed;
+      const vy = Math.sin(angle) * speed;
+      const aiTurnTimer = randRange(1.5, 3.5);
+
+      balls.push({
+        isPlayer: false,
+        x, y,
+        radius,
+        vx, vy,
+        aiTurnTimer,
+        colorIndex,
+        dead: false
+      });
+    }
+
+    function createAIBalls() {
+      for (let i = 0; i < AI_COUNT; i++) {
+        createAIBall();
+      }
+    }
+
+    function collidesWithAny(x, y, radius) {
+      for (const b of balls) {
+        const dx = x - b.x;
+        const dy = y - b.y;
+        const r = radius + b.radius;
+        if (dx * dx + dy * dy < r * r) return true;
+      }
+      return false;
+    }
+
+    // ------------------------------------------------------------
+    // Main loop
+    // ------------------------------------------------------------
+    function gameLoop(timestamp) {
+      const dt = Math.min((timestamp - lastTime) / 1000, 0.033);
+      lastTime = timestamp;
+
+      if (state === 'playing') {
+        update(dt);
+      }
+
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+
+    function update(dt) {
+      elapsedTime += dt;
+
+      updateBalls(dt);
+      handleCollisions();
+      updateChallenges();
+      updateHUD();
+    }
+
+    // ------------------------------------------------------------
+    // Update logic
+    // ------------------------------------------------------------
+    function updateBalls(dt) {
+      if (player) {
+        const speedFactor = 1 / (1 + (player.radius - PLAYER_START_RADIUS) / 80);
+        const speed = PLAYER_BASE_SPEED * speedFactor;
+        player.x += player.headingX * speed * dt;
+        player.y += player.headingY * speed * dt;
+
+        // Clamp to arena with a bounce
+        if (player.x - player.radius < 0) {
+          player.x = player.radius;
+          player.headingX = Math.abs(player.headingX);
+        } else if (player.x + player.radius > viewWidth) {
+          player.x = viewWidth - player.radius;
+          player.headingX = -Math.abs(player.headingX);
+        }
+        if (player.y - player.radius < 0) {
+          player.y = player.radius;
+          player.headingY = Math.abs(player.headingY);
+        } else if (player.y + player.radius > viewHeight) {
+          player.y = viewHeight - player.radius;
+          player.headingY = -Math.abs(player.headingY);
+        }
+        normalizeHeading(player);
+      }
+
+      for (const b of balls) {
+        if (b.isPlayer || b.dead) continue;
+
+        b.aiTurnTimer -= dt;
+        if (b.aiTurnTimer <= 0) {
+          const speed = randomAISpeed();
+          const angle = Math.random() * Math.PI * 2;
+          b.vx = Math.cos(angle) * speed;
+          b.vy = Math.sin(angle) * speed;
+          b.aiTurnTimer = randRange(1.3, 3.8);
+        }
+
+        b.x += b.vx * dt;
+        b.y += b.vy * dt;
+
+        // Bounce
+        if (b.x - b.radius < 0) {
+          b.x = b.radius;
+          b.vx = Math.abs(b.vx);
+        } else if (b.x + b.radius > viewWidth) {
+          b.x = viewWidth - b.radius;
+          b.vx = -Math.abs(b.vx);
+        }
+        if (b.y - b.radius < 0) {
+          b.y = b.radius;
+          b.vy = Math.abs(b.vy);
+        } else if (b.y + b.radius > viewHeight) {
+          b.y = viewHeight - b.radius;
+          b.vy = -Math.abs(b.vy);
+        }
+      }
+    }
+
+    function separateBalls(a, b, dx, dy, dist, overlap) {
+      const nx = dx / dist;
+      const ny = dy / dist;
+      const half = overlap * 0.5;
+      a.x -= nx * half;
+      a.y -= ny * half;
+      b.x += nx * half;
+      b.y += ny * half;
+    }
+
+    function handleCollisions() {
+      for (let i = 0; i < balls.length; i++) {
+        const a = balls[i];
+        if (a.dead) continue;
+
+        for (let j = i + 1; j < balls.length; j++) {
+          const b = balls[j];
+          if (b.dead) continue;
+
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const rSum = a.radius + b.radius;
+          const dist2 = dx * dx + dy * dy;
+          if (dist2 >= rSum * rSum) continue;
+
+          const dist = Math.sqrt(dist2) || 0.0001;
+          const overlap = rSum - dist;
+
+          const sizeRatio = a.radius / b.radius;
+          let eater = null, food = null;
+
+          if (sizeRatio > SIZE_EAT_THRESHOLD) {
+            eater = a; food = b;
+          } else if (1 / sizeRatio > SIZE_EAT_THRESHOLD) {
+            eater = b; food = a;
+          }
+
+          // No one big enough: just bounce
+          if (!eater || !food) {
+            separateBalls(a, b, dx, dy, dist, overlap);
+            continue;
+          }
+
+          // Rule: cannot eat balls with the same color -> bounce
+          if (eater.colorIndex === food.colorIndex) {
+            separateBalls(a, b, dx, dy, dist, overlap);
+            continue;
+          }
+
+          // If food is player, handle death + grace period
+          if (food.isPlayer && state === 'playing') {
+            if (elapsedTime < spawnGraceUntil) {
+              // Push apart strongly instead of killing
+              separateBalls(a, b, dx, dy, dist, overlap + 4);
+              continue;
+            }
+            food.dead = true;
+            growBall(eater, food);
+            gameOver('eaten');
+            continue;
+          }
+
+          // Player eats AI (respect cooldown)
+          if (eater.isPlayer) {
+            if (elapsedTime - playerLastEatTime < PLAYER_EAT_COOLDOWN) {
+              separateBalls(a, b, dx, dy, dist, overlap);
+              continue;
+            }
+            playerLastEatTime = elapsedTime;
+
+            food.dead = true;
+            growBall(eater, food);
+            if (!food.isPlayer) createAIBall();
+            continue;
+          }
+
+          // AI eats AI
+          food.dead = true;
+          growBall(eater, food);
+          if (!food.isPlayer) createAIBall();
+        }
+      }
+
+      balls = balls.filter(b => !b.dead);
+    }
+
+    function growBall(eater, food) {
+      const eaterArea = eater.radius * eater.radius;
+      const foodArea = food.radius * food.radius;
+      const factor = eater.isPlayer ? PLAYER_GROWTH_FACTOR : AI_GROWTH_FACTOR;
+      const newRadius = Math.sqrt(eaterArea + foodArea * factor);
+      eater.radius = Math.min(newRadius, MAX_BALL_RADIUS);
+      eater.colorIndex = food.colorIndex;
+    }
+
+    // ------------------------------------------------------------
+    // Color challenge logic
+    // ------------------------------------------------------------
+    function updateChallenges() {
+      if (state !== 'playing' || !player) return;
+
+      if (!currentChallenge && elapsedTime >= nextChallengeTime) {
+        startChallenge();
+      }
+
+      if (currentChallenge && elapsedTime >= currentChallenge.endTime) {
+        finishChallenge();
+      }
+    }
+
+    function startChallenge() {
+      const duration = randRange(CHALLENGE_MIN_DURATION, CHALLENGE_MAX_DURATION);
+      let colorIndex = randInt(0, BALL_COLORS.length - 1);
+      if (BALL_COLORS.length > 1 && colorIndex === player.colorIndex && Math.random() < 0.7) {
+        colorIndex = (colorIndex + 1) % BALL_COLORS.length;
+      }
+
+      currentChallenge = {
+        colorIndex,
+        endTime: elapsedTime + duration
+      };
+
+      ensureTargetColorPresence(colorIndex);
+    }
+
+    // Guarantee at least 2 eatable balls of the target color are on screen
+    function ensureTargetColorPresence(colorIndex) {
+      let count = 0;
+      for (const b of balls) {
+        if (!b.isPlayer && !b.dead && b.colorIndex === colorIndex) count++;
+      }
+      let need = Math.max(2 - count, 0);
+      if (need <= 0) return;
+
+      // First, recolor and shrink existing AI balls
+      for (const b of balls) {
+        if (need <= 0) break;
+        if (b.isPlayer || b.dead || b.colorIndex === colorIndex) continue;
+        b.colorIndex = colorIndex;
+        b.radius = randRange(AI_BASE_MIN_RADIUS, AI_BASE_MAX_RADIUS * 1.2);
+        need--;
+      }
+
+      // If we still need more, spawn a couple of small ones
+      while (need > 0) {
+        createAIBall();
+        const nb = balls[balls.length - 1];
+        nb.colorIndex = colorIndex;
+        nb.radius = randRange(AI_BASE_MIN_RADIUS, AI_BASE_MAX_RADIUS * 1.2);
+        need--;
+      }
+    }
+
+    function finishChallenge() {
+      if (!currentChallenge) return;
+
+      if (player && player.colorIndex === currentChallenge.colorIndex) {
+        roundsSurvived++;
+        nextChallengeTime = elapsedTime + CHALLENGE_INTERVAL;
+        currentChallenge = null;
+      } else {
+        currentChallenge = null;
+        gameOver('color_mismatch');
+      }
+    }
+
+    // ------------------------------------------------------------
+    // Drawing
+    // ------------------------------------------------------------
+    function draw() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, viewWidth, viewHeight);
+
+      drawGrid();
+
+      // Border frame
+      ctx.save();
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(1, 1, viewWidth - 2, viewHeight - 2);
+      ctx.restore();
+
+      const nonPlayer = balls.filter(b => !b.isPlayer);
+      nonPlayer.forEach(drawBall);
+      if (player) drawBall(player);
+    }
+
+    function drawGrid() {
+      const gridSize = 40;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+      ctx.lineWidth = 1;
+
+      for (let x = gridSize / 2; x < viewWidth; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, viewHeight);
+        ctx.stroke();
+      }
+      for (let y = gridSize / 2; y < viewHeight; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(viewWidth, y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawBall(b) {
+      const color = BALL_COLORS[b.colorIndex] || BALL_COLORS[0];
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+      ctx.fillStyle = color.hex;
+      ctx.fill();
+      ctx.lineWidth = b.isPlayer ? 3 : 2;
+      ctx.strokeStyle = '#000';
+      ctx.stroke();
+
+      if (b.isPlayer) {
+        // Simple eye to show direction
+        const eyeOffset = Math.max(4, b.radius * 0.45);
+        const ex = b.x + player.headingX * eyeOffset;
+        const ey = b.y + player.headingY * eyeOffset;
+        ctx.beginPath();
+        ctx.arc(ex, ey, Math.max(2.5, b.radius * 0.12), 0, Math.PI * 2);
+        ctx.fillStyle = '#000';
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
+
+    // ------------------------------------------------------------
+    // HUD & scoring
+    // ------------------------------------------------------------
+    function updateHUD() {
+      if (!player) {
+        scoreEl.textContent = '0';
+        roundEl.textContent = '0';
+        targetBlockEl.style.opacity = '0.4';
+        targetNameEl.textContent = '---';
+        targetTimerEl.textContent = '';
+        targetStatusEl.textContent = '';
+        return;
+      }
+
+      const score = Math.floor(calculateScore());
+      scoreEl.textContent = score.toLocaleString();
+      roundEl.textContent = roundsSurvived.toString();
+      bestEl.textContent = bestScore.toLocaleString();
+
+      if (currentChallenge) {
+        targetBlockEl.style.opacity = '1';
+        const color = BALL_COLORS[currentChallenge.colorIndex];
+        targetSwatchEl.style.background = color.hex;
+        targetNameEl.textContent = color.name;
+
+        const remaining = Math.max(0, currentChallenge.endTime - elapsedTime);
+        targetTimerEl.textContent = remaining.toFixed(1) + 's';
+
+        if (player.colorIndex === currentChallenge.colorIndex) {
+          targetStatusEl.textContent = 'OK';
+        } else {
+          targetStatusEl.textContent = '';
+        }
+      } else {
+        targetBlockEl.style.opacity = '0.5';
+        targetNameEl.textContent = '---';
+        targetTimerEl.textContent = '';
+        targetStatusEl.textContent = '';
+        targetSwatchEl.style.background = '#fff';
+      }
+    }
+
+    function calculateScore() {
+      if (!player) return 0;
+      const sizeScore = Math.max(0, (player.radius - PLAYER_START_RADIUS) * 18);
+      const roundScore = roundsSurvived * 250;
+      const survivalScore = elapsedTime * 2.5;
+      return sizeScore + roundScore + survivalScore;
+    }
+
+    // ------------------------------------------------------------
+    // Input
+    // ------------------------------------------------------------
+    function handlePointerDown(e) {
+      e.preventDefault();
+
+      if (dragHintEl) dragHintEl.classList.add('hidden');
+
+      if (state !== 'playing') {
+        startGame();
+        return;
+      }
+
+      if (activePointerId === null) {
+        activePointerId = e.pointerId;
+        updateDirectionFromEvent(e);
+      }
+    }
+
+    function handlePointerMove(e) {
+      if (state !== 'playing') return;
+      if (activePointerId !== e.pointerId) return;
+      updateDirectionFromEvent(e);
+    }
+
+    function handlePointerUp(e) {
+      if (activePointerId === e.pointerId) {
+        activePointerId = null;
+      }
+    }
+
+    function updateDirectionFromEvent(e) {
+      if (!player) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const dx = x - player.x;
+      const dy = y - player.y;
+      const len = Math.hypot(dx, dy) || 1;
+      player.headingX = dx / len;
+      player.headingY = dy / len;
+    }
+
+    // ------------------------------------------------------------
+    // Helpers
+    // ------------------------------------------------------------
+    function randRange(min, max) {
+      return min + Math.random() * (max - min);
+    }
+
+    function randInt(min, max) {
+      return Math.floor(min + Math.random() * (max - min + 1));
+    }
+
+    function normalizeHeading(b) {
+      const len = Math.hypot(b.headingX, b.headingY) || 1;
+      b.headingX /= len;
+      b.headingY /= len;
+    }
+
+    function clamp(v, min, max) {
+      return Math.max(min, Math.min(max, v));
+    }
+  </script>
+</body>
+</html>
